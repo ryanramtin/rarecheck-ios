@@ -1,4 +1,4 @@
-# CardSignal — Pokémon Card Scanner & Pricing
+# RareCheck — Pokémon Card Scanner & Pricing
 
 [![iOS](https://img.shields.io/badge/iOS-17.0%2B-blue)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-5.10-orange)](https://swift.org)
@@ -59,7 +59,7 @@ Card detection (VNDetectRectanglesRequest + perspective crop)
 ## Project Structure
 
 ```
-CardSignal/
+RareCheck/
 ├── App/                    # Entry point, TabView
 ├── Scanner/                # Camera, OCR, card detector
 ├── Matching/               # pHash matcher, identification service
@@ -80,31 +80,31 @@ CardSignal/
 ### Setup
 
 ```bash
-git clone https://github.com/ryanramtin/cardsignal-ios.git
-cd cardsignal-ios
+git clone https://github.com/ryanramtin/rarecheck-ios.git
+cd rarecheck-ios
 
 # Generate Xcode project
 xcodegen generate
 
 # Open in Xcode
-open CardSignal.xcodeproj
+open RareCheck.xcodeproj
 ```
 
 ### RevenueCat Configuration
 
 1. Create a RevenueCat account at [revenuecat.com](https://www.revenuecat.com)
-2. Add your API key in `CardSignalApp.swift`:
+2. Add your API key in `RareCheckApp.swift`:
    ```swift
    Purchases.configure(withAPIKey: "YOUR_KEY_HERE")
    ```
 3. Create products in App Store Connect:
-   - Monthly: `app.cardsignal.pro.monthly` ($4.99/mo)
-   - Annual: `app.cardsignal.pro.annual` ($19.99/yr)
+   - Monthly: `app.rarecheck.pro.monthly` ($4.99/mo)
+   - Annual: `app.rarecheck.pro.annual` ($19.99/yr)
 4. Set entitlement ID `"pro"` in RevenueCat dashboard
 
 ### Backend
 
-See [cardsignal-api](https://github.com/ryanramtin/cardsignal-api) for the Node.js/Express/PostgreSQL backend.
+See [rarecheck-api](https://github.com/ryanramtin/rarecheck-api) for the Node.js/Express/PostgreSQL backend.
 
 Set your API base URL in `APIClient.swift` or via the `API_BASE_URL` environment variable.
 
@@ -112,8 +112,8 @@ Set your API base URL in `APIClient.swift` or via the `API_BASE_URL` environment
 
 ```bash
 xcodebuild \
-  -project CardSignal.xcodeproj \
-  -scheme CardSignal \
+  -project RareCheck.xcodeproj \
+  -scheme RareCheck \
   -destination "generic/platform=iOS Simulator" \
   -configuration Debug \
   build

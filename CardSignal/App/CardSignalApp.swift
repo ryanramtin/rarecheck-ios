@@ -1,0 +1,26 @@
+import SwiftUI
+import RevenueCat
+
+@main
+struct CardSignalApp: App {
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
+    @StateObject private var persistenceController = PersistenceController.shared
+
+    init() {
+        configureRevenueCat()
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(subscriptionManager)
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+        }
+    }
+
+    private func configureRevenueCat() {
+        // Replace with your actual RevenueCat API key from dashboard
+        Purchases.configure(withAPIKey: "appl_REPLACE_WITH_YOUR_REVENUECAT_KEY")
+        Purchases.logLevel = .debug
+    }
+}

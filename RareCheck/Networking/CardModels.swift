@@ -40,7 +40,7 @@ struct PriceHistoryPoint: Codable, Identifiable {
 
 // MARK: - API Request / Response Wrappers
 
-struct CardIdentifyRequest: Codable {
+struct CardIdentifyRequest: Encodable {
     let image: String       // base64-encoded JPEG
     let userId: String?
     let ocrHints: CardIdentifyOCRHints?
@@ -51,11 +51,17 @@ struct CardIdentifyResponse: Codable {
     let processingTimeMs: Int
 }
 
-struct CardIdentifyOCRHints: Codable {
+struct CardIdentifyOCRHints: Encodable {
     let name: String?
     let collectorNumber: String?
     let setCode: String?
     let rawText: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case collectorNumber
+        case setCode
+    }
 }
 
 struct CardDetailResponse: Codable {

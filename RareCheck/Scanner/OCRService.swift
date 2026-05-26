@@ -27,11 +27,15 @@ final class OCRService {
             }
 
             request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = false          // raw text for card names
-            request.minimumTextHeight = 0.02                // filter tiny noise
+            request.usesLanguageCorrection = true
+            request.minimumTextHeight = 0.012
             request.recognitionLanguages = ["en-US"]
 
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            let handler = VNImageRequestHandler(
+                cgImage: cgImage,
+                orientation: CGImagePropertyOrientation(image.imageOrientation),
+                options: [:]
+            )
             do {
                 try handler.perform([request])
             } catch {
@@ -45,7 +49,9 @@ final class OCRService {
     private func parseObservations(_ observations: [VNRecognizedTextObservation]) -> OCRCardInfo {
         // Sort top-to-bottom by bounding box y position (Vision uses bottom-left origin)
         let sorted = observations.sorted { $0.boundingBox.minY > $1.boundingBox.minY }
-        let lines = sorted.compactMap { $0.topCandidates(1).first?.string }
+        let lines = sorted.flatMap { observation in
+            observation.topCandidates(3).map(\.string)
+        }
         let rawText = lines.joined(separator: "\n")
 
         // Card name is usually the first prominent line
@@ -98,6 +104,31 @@ final class OCRService {
     private func extractSetCode(from lines: [String]) -> String? {
         let pattern = #"^[A-Z]{2,4}$"#
         return lines.first { $0.range(of: pattern, options: .regularExpression) != nil }
+    }
+}
+
+private extension CGImagePropertyOrientation {
+    init(_ imageOrientation: UIImage.Orientation) {
+        switch imageOrientation {
+        case .up:
+            self = .up
+        case .upMirrored:
+            self = .upMirrored
+        case .down:
+            self = .down
+        case .downMirrored:
+            self = .downMirrored
+        case .left:
+            self = .left
+        case .leftMirrored:
+            self = .leftMirrored
+        case .right:
+            self = .right
+        case .rightMirrored:
+            self = .rightMirrored
+        @unknown default:
+            self = .up
+        }
     }
 }
 

@@ -49,7 +49,13 @@ final class CardIdentificationService: ObservableObject {
 
         // Step 4: Fall back to API
         let compressed = cardImage.jpegData(compressionQuality: 0.7) ?? Data()
-        let apiResponse = try await api.identifyCard(imageData: compressed)
+        let hints = CardIdentifyOCRHints(
+            name: ocr.name,
+            collectorNumber: ocr.collectorNumber,
+            setCode: ocr.setCode,
+            rawText: ocr.rawText
+        )
+        let apiResponse = try await api.identifyCard(imageData: compressed, ocrHints: hints)
         let ms = Int(Date().timeIntervalSince(start) * 1000)
         return IdentificationResult(matches: apiResponse.matches, source: .api, processingTimeMs: ms)
     }
@@ -251,7 +257,7 @@ final class CardScannerViewModel: ObservableObject {
             lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
             print("[RareCheck] Identification URLError: \(urlError)")
         } catch let apiError as APIError {
-            lastError = "Server error: \(apiError)"
+            lastError = apiError.errorDescription ?? "Card lookup service returned an error."
             print("[RareCheck] Identification APIError: \(apiError)")
         } catch {
             lastError = "Identification failed: \(error.localizedDescription)"

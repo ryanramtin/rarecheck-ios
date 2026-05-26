@@ -7,7 +7,7 @@ actor APIClient {
 
     // Set this to your Railway deployment URL in production
     private let baseURL = ProcessInfo.processInfo.environment["API_BASE_URL"]
-        ?? "https://rarecheck-api.railway.app"
+        ?? "https://rarecheck-api-production.up.railway.app"
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -25,9 +25,13 @@ actor APIClient {
 
     // MARK: - Card Identification
 
-    func identifyCard(imageData: Data, userId: String? = nil) async throws -> CardIdentifyResponse {
+    func identifyCard(
+        imageData: Data,
+        userId: String? = nil,
+        ocrHints: CardIdentifyOCRHints? = nil
+    ) async throws -> CardIdentifyResponse {
         let base64 = imageData.base64EncodedString()
-        let body = CardIdentifyRequest(image: base64, userId: userId)
+        let body = CardIdentifyRequest(image: base64, userId: userId, ocrHints: ocrHints)
         return try await post(path: "/api/cards/identify", body: body)
     }
 

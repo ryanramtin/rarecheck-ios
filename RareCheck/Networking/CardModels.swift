@@ -43,11 +43,19 @@ struct PriceHistoryPoint: Codable, Identifiable {
 struct CardIdentifyRequest: Codable {
     let image: String       // base64-encoded JPEG
     let userId: String?
+    let ocrHints: CardIdentifyOCRHints?
 }
 
 struct CardIdentifyResponse: Codable {
     let matches: [CardMatch]
     let processingTimeMs: Int
+}
+
+struct CardIdentifyOCRHints: Codable {
+    let name: String?
+    let collectorNumber: String?
+    let setCode: String?
+    let rawText: String?
 }
 
 struct CardDetailResponse: Codable {

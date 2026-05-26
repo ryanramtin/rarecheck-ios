@@ -27,6 +27,8 @@ struct ScannerContainerView: View {
     @StateObject private var cameraVM = CameraViewModel()
     @StateObject private var scannerVM = CardScannerViewModel()
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @State private var capturedPreview: UIImage?
+    @State private var capturePulse = false
 
     var body: some View {
         NavigationStack {
@@ -37,8 +39,23 @@ struct ScannerContainerView: View {
                     CameraPreview(session: cameraVM.session)
                         .ignoresSafeArea()
 
+                    if let capturedPreview {
+                        Image(uiImage: capturedPreview)
+                            .resizable()
+                            .scaledToFill()
+                            .ignoresSafeArea()
+                            .transition(.opacity)
+                            .opacity(0.55)
+                    }
+
                     // Card finder overlay
-                    CardFinderOverlay(isDetecting: scannerVM.isDetecting)
+                    CardFinderOverlay(
+                        isDetecting: scannerVM.isDetecting,
+                        isCapturing: cameraVM.isCapturing,
+                        isCaptured: capturedPreview != nil,
+                        isSearching: scannerVM.isProcessing,
+                        capturePulse: capturePulse
+                    )
 
                     VStack {
                         Spacer()
@@ -63,9 +80,22 @@ struct ScannerContainerView: View {
             // it so the next shutter tap fires a fresh identify().
             .onChange(of: cameraVM.capturedImage) { _, newImage in
                 guard let img = newImage else { return }
+                withAnimation(.easeOut(duration: 0.12)) {
+                    capturedPreview = img
+                    capturePulse = true
+                }
                 Task {
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    await MainActor.run {
+                        withAnimation(.easeOut(duration: 0.2)) { capturePulse = false }
+                    }
                     await scannerVM.identify(image: img)
-                    await MainActor.run { cameraVM.capturedImage = nil }
+                    await MainActor.run {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            capturedPreview = nil
+                            cameraVM.capturedImage = nil
+                        }
+                    }
                 }
             }
             // Auto-capture: when scannerVM sees a stable card detection for
@@ -89,6 +119,9 @@ struct ScannerContainerView: View {
                     scannerVM.saveCard(card)
                 })
                 .environmentObject(subscriptionManager)
+                .onDisappear {
+                    scannerVM.identificationResult = nil
+                }
             }
             .alert("Error", isPresented: .constant(cameraVM.error != nil)) {
                 Button("OK") { cameraVM.error = nil }
@@ -105,12 +138,16 @@ struct ScannerContainerView: View {
             // capturedImage above, not synchronously here, because
             // capturePhoto() is async (delegate fires on the next frame).
             Button {
+                guard scannerVM.isDetecting else {
+                    scannerVM.lastError = "No card detected yet. Align the card inside the green frame, then scan again."
+                    return
+                }
                 cameraVM.capturePhoto()
             } label: {
                 ZStack {
                     Circle().fill(.white).frame(width: 72, height: 72)
                     Circle().stroke(.white.opacity(0.4), lineWidth: 4).frame(width: 84, height: 84)
-                    if scannerVM.isProcessing {
+                    if cameraVM.isCapturing || scannerVM.isProcessing {
                         ProgressView().tint(.black)
                     } else {
                         Image(systemName: "camera.fill").font(.title2).foregroundStyle(.black)
@@ -143,6 +180,26 @@ struct ScannerContainerView: View {
 
 struct CardFinderOverlay: View {
     var isDetecting: Bool
+    var isCapturing: Bool
+    var isCaptured: Bool
+    var isSearching: Bool
+    var capturePulse: Bool
+
+    private var borderColor: Color {
+        if isSearching { return .cyan }
+        if isCaptured { return .yellow }
+        if isCapturing { return .orange }
+        if isDetecting { return .green }
+        return .white
+    }
+
+    private var statusText: String {
+        if isSearching { return "Searching Pokemon database..." }
+        if isCaptured { return "Captured" }
+        if isCapturing { return "Capturing..." }
+        if isDetecting { return "Card detected - tap scan" }
+        return "Align card in frame"
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -167,15 +224,27 @@ struct CardFinderOverlay: View {
 
                 // Corner brackets
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isDetecting ? .green : .white, lineWidth: 2)
+                    .stroke(borderColor, lineWidth: isCaptured || isSearching ? 4 : 2)
                     .frame(width: w, height: h)
                     .offset(x: x - geo.size.width / 2 + w / 2,
                             y: y - geo.size.height / 2 + h / 2)
-                    .animation(.easeInOut(duration: 0.3), value: isDetecting)
+                    .shadow(color: borderColor.opacity(isCaptured || isSearching ? 0.9 : 0.35), radius: capturePulse ? 24 : 8)
+                    .scaleEffect(capturePulse ? 1.025 : 1)
+                    .animation(.easeInOut(duration: 0.22), value: isDetecting)
+                    .animation(.spring(response: 0.22, dampingFraction: 0.7), value: capturePulse)
 
                 VStack {
                     Spacer()
-                    Text(isDetecting ? "Card detected" : "Align card in frame")
+                    HStack(spacing: 8) {
+                        if isSearching {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.75)
+                        } else if isCaptured {
+                            Image(systemName: "checkmark.circle.fill")
+                        }
+                        Text(statusText)
+                    }
                         .font(.caption)
                         .foregroundStyle(.white)
                         .padding(.vertical, 6)

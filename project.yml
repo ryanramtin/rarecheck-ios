@@ -11,7 +11,7 @@ options:
 
 settings:
   SWIFT_VERSION: "5.10"
-  DEVELOPMENT_TEAM: ""   # Fill in your Apple Team ID
+  DEVELOPMENT_TEAM: "377C4V6762"
   PRODUCT_BUNDLE_IDENTIFIER: app.rarecheck.ios
   MARKETING_VERSION: "1.0.0"
   CURRENT_PROJECT_VERSION: "1"
@@ -35,7 +35,7 @@ targets:
         product: RevenueCat
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.rarecheck.ios
-      DEVELOPMENT_TEAM: ""
+      DEVELOPMENT_TEAM: "377C4V6762"
       INFOPLIST_FILE: RareCheck/Resources/Info.plist
     info:
       path: RareCheck/Resources/Info.plist

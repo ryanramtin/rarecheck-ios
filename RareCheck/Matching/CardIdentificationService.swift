@@ -202,29 +202,59 @@ final class CardScannerViewModel: ObservableObject {
     @Published var isDetecting = false
     @Published var isProcessing = false
     @Published var identificationResult: IdentificationResult?
+    @Published var lastError: String?
+
+    // Auto-capture: when a card is detected continuously for this many
+    // consecutive analyze ticks (~0.5s each), fire the shutter automatically
+    // by toggling `shouldAutoCapture`. The view observes and triggers capture.
+    @Published var shouldAutoCapture = false
 
     private let identificationService = CardIdentificationService.shared
     private let persistenceController = PersistenceController.shared
 
     private var frameThrottle = 0
+    private var consecutiveDetections = 0
+    private let autoCaptureThreshold = 3  // ~1.5s of stable detection
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1
         guard frameThrottle % 15 == 0 else { return }  // Check every ~0.5s at 30fps
         let hasCard = CardDetector.shared.hasCard(in: buffer)
-        Task { @MainActor in self.isDetecting = hasCard }
+        Task { @MainActor in
+            self.isDetecting = hasCard
+            // Auto-capture once we've seen a card for N consecutive ticks AND
+            // we aren't already processing a previous capture.
+            if hasCard {
+                self.consecutiveDetections += 1
+                if self.consecutiveDetections >= self.autoCaptureThreshold,
+                   !self.isProcessing,
+                   self.identificationResult == nil {
+                    self.shouldAutoCapture = true
+                    self.consecutiveDetections = 0
+                }
+            } else {
+                self.consecutiveDetections = 0
+            }
+        }
     }
 
     func identify(image: UIImage) async {
         guard !isProcessing else { return }
         isProcessing = true
+        lastError = nil
         defer { isProcessing = false }
 
         do {
             let result = try await identificationService.identify(image: image)
             identificationResult = result
+        } catch let urlError as URLError {
+            lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
+            print("[RareCheck] Identification URLError: \(urlError)")
+        } catch let apiError as APIError {
+            lastError = "Server error: \(apiError)"
+            print("[RareCheck] Identification APIError: \(apiError)")
         } catch {
-            // Surface error to user if needed
+            lastError = "Identification failed: \(error.localizedDescription)"
             print("[RareCheck] Identification error: \(error)")
         }
     }

@@ -68,6 +68,22 @@ struct ScannerContainerView: View {
                     await MainActor.run { cameraVM.capturedImage = nil }
                 }
             }
+            // Auto-capture: when scannerVM sees a stable card detection for
+            // ~1.5s, it flips shouldAutoCapture true. We fire the shutter
+            // and reset the flag.
+            .onChange(of: scannerVM.shouldAutoCapture) { _, shouldCapture in
+                guard shouldCapture else { return }
+                cameraVM.capturePhoto()
+                scannerVM.shouldAutoCapture = false
+            }
+            // Surface identification errors so "thinking → nothing" isn't
+            // silent. Most likely cause today: API backend not deployed,
+            // so a real card scan times out after 30s.
+            .alert("Scan failed", isPresented: .constant(scannerVM.lastError != nil)) {
+                Button("OK") { scannerVM.lastError = nil }
+            } message: {
+                Text(scannerVM.lastError ?? "")
+            }
             .sheet(item: $scannerVM.identificationResult) { result in
                 CardMatchResultSheet(result: result, onSave: { card in
                     scannerVM.saveCard(card)

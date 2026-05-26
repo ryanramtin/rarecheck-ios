@@ -55,7 +55,25 @@ final class CardIdentificationService: ObservableObject {
             setCode: ocr.setCode,
             rawText: ocr.rawText
         )
-        let apiResponse = try await api.identifyCard(imageData: compressed, ocrHints: hints)
+        var apiResponse = try await api.identifyCard(imageData: compressed, ocrHints: hints)
+
+        if apiResponse.matches.isEmpty {
+            for candidate in fallbackNameCandidates(from: ocr) {
+                guard candidate.caseInsensitiveCompare(ocr.name ?? "") != .orderedSame else { continue }
+                let candidateHints = CardIdentifyOCRHints(
+                    name: candidate,
+                    collectorNumber: ocr.collectorNumber,
+                    setCode: ocr.setCode,
+                    rawText: nil
+                )
+                let candidateResponse = try await api.identifyCard(imageData: compressed, ocrHints: candidateHints)
+                if !candidateResponse.matches.isEmpty {
+                    apiResponse = candidateResponse
+                    break
+                }
+            }
+        }
+
         let ms = Int(Date().timeIntervalSince(start) * 1000)
         return IdentificationResult(matches: apiResponse.matches, source: .api, processingTimeMs: ms)
     }
@@ -154,6 +172,42 @@ final class CardIdentificationService: ObservableObject {
             if aChars[i] == bChars[i] { prefix += 1 } else { break }
         }
         return jaro + Double(prefix) * 0.1 * (1 - jaro)
+    }
+
+    private func fallbackNameCandidates(from ocr: OCRCardInfo) -> [String] {
+        var seen = Set<String>()
+        var candidates: [String] = []
+
+        func add(_ value: String?) {
+            guard let value = value else { return }
+            let cleaned = cleanNameCandidate(value)
+            guard let cleaned, !seen.contains(cleaned.lowercased()) else { return }
+            seen.insert(cleaned.lowercased())
+            candidates.append(cleaned)
+        }
+
+        add(ocr.name)
+        ocr.rawText
+            .components(separatedBy: .newlines)
+            .forEach { add($0) }
+
+        return candidates.prefix(8).map { $0 }
+    }
+
+    private func cleanNameCandidate(_ value: String) -> String? {
+        let cleaned = value
+            .replacingOccurrences(of: #"[^A-Za-z0-9 '.:-]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\bHP\s*\d+\b"#, with: " ", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\b\d{1,3}\s*/\s*\d{1,3}\b"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard cleaned.count >= 3, cleaned.count <= 60 else { return nil }
+        guard cleaned.range(of: #"^\d+$"#, options: .regularExpression) == nil else { return nil }
+        guard cleaned.range(of: #"^(basic|stage\s+\d+|trainer|energy|weakness|resistance|retreat)$"#, options: [.regularExpression, .caseInsensitive]) == nil else {
+            return nil
+        }
+        return cleaned
     }
 }
 

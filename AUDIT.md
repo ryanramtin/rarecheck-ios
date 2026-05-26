@@ -21,7 +21,7 @@
 | **Collection** | CollectionView, CollectionViewModel | CoreData-backed grid. |
 | **Paywall** | PaywallView, SubscriptionManager | RevenueCat integration scaffolded; entitlement ID `"pro"`. |
 | **CoreData** | PersistenceController | `.xcdatamodeld` referenced. |
-| **App** | CardSignalApp.swift, ContentView | Entry point + 3-tab nav (Scan/Collection/Settings). |
+| **App** | RareCheckApp.swift, ContentView | Entry point + 3-tab nav (Scan/Collection/Settings). |
 
 ### Backend (rarecheck-api)
 
@@ -96,13 +96,11 @@ Both mockups show character-led notification cards (Pikachu/Charizard/Mewtwo/Eev
 
 ### 8. RevenueCat placeholder key
 
-`CardSignalApp.swift:23` ships with `"appl_REPLACE_WITH_YOUR_REVENUECAT_KEY"`. App will crash on first launch in production. Needs a real RevenueCat account + key + product IDs (`app.rarecheck.pro.monthly`, `app.rarecheck.pro.annual`) in ASC.
+`RareCheckApp.swift:23` ships with `"appl_REPLACE_WITH_YOUR_REVENUECAT_KEY"`. App will crash on first launch in production. Needs a real RevenueCat account + key + product IDs (`app.rarecheck.pro.monthly`, `app.rarecheck.pro.annual`) in ASC.
 
-### 9. File-name vs. struct-name mismatch (low priority cosmetic)
+### 9. ✅ File-name vs. struct-name mismatch — RESOLVED
 
-`App/CardSignalApp.swift` contains `struct RareCheckApp: App`. The rename commit (`08057f5`) updated the struct but not the file. Doesn't break the build (Swift doesn't care about filenames), but inconsistent and confusing.
-
-**Fix:** `git mv RareCheck/App/CardSignalApp.swift RareCheck/App/RareCheckApp.swift` + regenerate Xcode project.
+Previously: `App/CardSignalApp.swift` contained `struct RareCheckApp: App` — the rename commit (`08057f5`) updated the struct but not the file. Fixed via `git mv` to `App/RareCheckApp.swift` on 2026-05-25. Xcode project is XcodeGen-generated (regenerates from `RareCheck/` source globs), so no project-file edits needed.
 
 ### 10. No Compare / Grading Guide screens
 
@@ -129,7 +127,7 @@ Adult Mode's "Advanced Tools" four-tile row (Price Alerts / Grading Guide / Comp
 
 1. **Validate scaffold runs.** `xcodegen generate`, build for simulator, fix any compile errors, confirm camera permission prompt + scan loop works end-to-end against the production-deployed backend.
 2. **Deploy `rarecheck-api` to Railway.** Provision project, set env vars (PG URL, Pokémon TCG API key, JWT secret), `railway up`, confirm `/health` returns 200.
-3. **Rename file + struct + bundle ID** to RareCheck consistency. `CardSignalApp.swift` → `RareCheckApp.swift`.
+3. **Rename file + struct + bundle ID** to RareCheck consistency. `RareCheckApp.swift` → `RareCheckApp.swift`.
 4. **Add `AppMode` + dual-root.** Implement `KidRootView` and `AdultRootView` (Kid: 3-tab bar, Adult: 5-tab bar). Settings screen shows both toggles.
 5. **Wire RevenueCat properly.** Create products in ASC + RevenueCat dashboard, replace placeholder key, test purchase flow with sandbox account.
 6. **Build Adult Home (dashboard).** Greeting, Scan Card CTA, Upload Photo, My Collection card with count, Market Trends prompt. Stub data initially.
@@ -146,7 +144,7 @@ Weeks 2+: Notifications, Watchlist, Price Alerts, Compare, Grading Guide, Market
 
 | File | Change |
 |---|---|
-| `RareCheck/App/CardSignalApp.swift` → `RareCheckApp.swift` | Rename file. Replace placeholder RevenueCat key with `Bundle.main.object(forInfoDictionaryKey: "REVENUECAT_API_KEY")` reading from Info.plist (committed via `.xcconfig`, not source). |
+| `RareCheck/App/RareCheckApp.swift` → `RareCheckApp.swift` | Rename file. Replace placeholder RevenueCat key with `Bundle.main.object(forInfoDictionaryKey: "REVENUECAT_API_KEY")` reading from Info.plist (committed via `.xcconfig`, not source). |
 | `RareCheck/App/ContentView.swift` | Replace 3-tab TabView with `AppMode` dispatch. New `KidRootView` and `AdultRootView`. |
 | **NEW** `RareCheck/App/AppMode.swift` | `enum AppMode: String, Codable { case kid, adult }` + `@AppStorage("appMode")` wrapper. |
 | **NEW** `RareCheck/App/KidRootView.swift` | 3-tab bar (Scan/Collection/Profile). |

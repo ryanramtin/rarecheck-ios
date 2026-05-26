@@ -1,6 +1,7 @@
 import AVFoundation
 import UIKit
 import Combine
+import AudioToolbox
 
 @MainActor
 final class CameraViewModel: NSObject, ObservableObject {
@@ -14,6 +15,7 @@ final class CameraViewModel: NSObject, ObservableObject {
     nonisolated(unsafe) let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     private var videoOutput: AVCaptureVideoDataOutput?
+    private var cameraDevice: AVCaptureDevice?
 
     // Stored nonisolated so the video-queue delegate can call it without
     // crossing actor boundaries. The closure itself must be concurrency-safe.
@@ -53,11 +55,14 @@ final class CameraViewModel: NSObject, ObservableObject {
             session.commitConfiguration()
             return
         }
+        cameraDevice = device
+        configureCameraDevice(device)
 
         if session.canAddInput(input) { session.addInput(input) }
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
             photoOutput.isHighResolutionCaptureEnabled = true
+            photoOutput.maxPhotoQualityPrioritization = .quality
         }
 
         // Video data output for live card detection
@@ -71,6 +76,7 @@ final class CameraViewModel: NSObject, ObservableObject {
         }
 
         session.commitConfiguration()
+        alignVideoConnectionsForPortrait()
     }
 
     func startSession() {
@@ -95,7 +101,45 @@ final class CameraViewModel: NSObject, ObservableObject {
         isCapturing = true
         let settings = AVCapturePhotoSettings()
         settings.flashMode = .auto
+        settings.isHighResolutionPhotoEnabled = true
+        settings.photoQualityPrioritization = .quality
         photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+
+    private func configureCameraDevice(_ device: AVCaptureDevice) {
+        do {
+            try device.lockForConfiguration()
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                device.whiteBalanceMode = .continuousAutoWhiteBalance
+            }
+            if device.isSmoothAutoFocusSupported {
+                device.isSmoothAutoFocusEnabled = true
+            }
+            device.unlockForConfiguration()
+        } catch {
+            self.error = "Could not optimize camera focus."
+        }
+    }
+
+    private func alignVideoConnectionsForPortrait() {
+        [photoOutput.connection(with: .video), videoOutput?.connection(with: .video)]
+            .compactMap { $0 }
+            .forEach { connection in
+                if connection.isVideoOrientationSupported {
+                    connection.videoOrientation = .portrait
+                }
+            }
+    }
+
+    private func playCaptureFeedback() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        AudioServicesPlaySystemSound(1108)
     }
 }
 
@@ -118,6 +162,7 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
                 self.error = "Failed to process photo."
                 return
             }
+            self.playCaptureFeedback()
             self.capturedImage = image
         }
     }

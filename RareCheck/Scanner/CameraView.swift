@@ -28,6 +28,8 @@ struct ScannerContainerView: View {
     @StateObject private var scannerVM = CardScannerViewModel()
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @State private var capturedPreview: UIImage?
+    @State private var resultCapture: UIImage?
+    @State private var pendingLockedCapture = false
     @State private var capturePulse = false
 
     var body: some View {
@@ -39,18 +41,11 @@ struct ScannerContainerView: View {
                     CameraPreview(session: cameraVM.session)
                         .ignoresSafeArea()
 
-                    if let capturedPreview {
-                        Image(uiImage: capturedPreview)
-                            .resizable()
-                            .scaledToFill()
-                            .ignoresSafeArea()
-                            .transition(.opacity)
-                            .opacity(0.55)
-                    }
-
                     // Card finder overlay
                     CardFinderOverlay(
                         isDetecting: scannerVM.isDetecting,
+                        isLocked: scannerVM.isLocked,
+                        lockProgress: scannerVM.lockProgress,
                         isCapturing: cameraVM.isCapturing,
                         isCaptured: capturedPreview != nil,
                         isSearching: scannerVM.isProcessing,
@@ -80,6 +75,13 @@ struct ScannerContainerView: View {
             // it so the next shutter tap fires a fresh identify().
             .onChange(of: cameraVM.capturedImage) { _, newImage in
                 guard let img = newImage else { return }
+                guard pendingLockedCapture else {
+                    cameraVM.capturedImage = nil
+                    scannerVM.lastError = "Card is not locked yet. Fill the frame with one card and wait for the green READY border before scanning."
+                    return
+                }
+                pendingLockedCapture = false
+                resultCapture = img
                 withAnimation(.easeOut(duration: 0.12)) {
                     capturedPreview = img
                     capturePulse = true
@@ -98,14 +100,6 @@ struct ScannerContainerView: View {
                     }
                 }
             }
-            // Auto-capture: when scannerVM sees a stable card detection for
-            // ~1.5s, it flips shouldAutoCapture true. We fire the shutter
-            // and reset the flag.
-            .onChange(of: scannerVM.shouldAutoCapture) { _, shouldCapture in
-                guard shouldCapture else { return }
-                cameraVM.capturePhoto()
-                scannerVM.shouldAutoCapture = false
-            }
             // Surface identification errors so "thinking → nothing" isn't
             // silent. Most likely cause today: API backend not deployed,
             // so a real card scan times out after 30s.
@@ -115,12 +109,13 @@ struct ScannerContainerView: View {
                 Text(scannerVM.lastError ?? "")
             }
             .sheet(item: $scannerVM.identificationResult) { result in
-                CardMatchResultSheet(result: result, onSave: { card in
+                CardMatchResultSheet(result: result, capturedImage: resultCapture, onSave: { card in
                     scannerVM.saveCard(card)
                 })
                 .environmentObject(subscriptionManager)
                 .onDisappear {
                     scannerVM.identificationResult = nil
+                    resultCapture = nil
                 }
             }
             .alert("Error", isPresented: .constant(cameraVM.error != nil)) {
@@ -138,10 +133,11 @@ struct ScannerContainerView: View {
             // capturedImage above, not synchronously here, because
             // capturePhoto() is async (delegate fires on the next frame).
             Button {
-                guard scannerVM.isDetecting else {
-                    scannerVM.lastError = "No card detected yet. Align the card inside the green frame, then scan again."
+                guard scannerVM.isLocked else {
+                    scannerVM.lastError = "Card is not locked yet. Fill the frame with one card and wait for the green READY border before scanning."
                     return
                 }
+                pendingLockedCapture = true
                 cameraVM.capturePhoto()
             } label: {
                 ZStack {
@@ -154,7 +150,8 @@ struct ScannerContainerView: View {
                     }
                 }
             }
-            .disabled(scannerVM.isProcessing)
+            .disabled(!scannerVM.isLocked || scannerVM.isProcessing)
+            .opacity(scannerVM.isLocked || scannerVM.isProcessing ? 1 : 0.6)
             Spacer()
         }
         .padding(.bottom, 40)
@@ -180,6 +177,8 @@ struct ScannerContainerView: View {
 
 struct CardFinderOverlay: View {
     var isDetecting: Bool
+    var isLocked: Bool
+    var lockProgress: Double
     var isCapturing: Bool
     var isCaptured: Bool
     var isSearching: Bool
@@ -189,7 +188,8 @@ struct CardFinderOverlay: View {
         if isSearching { return .cyan }
         if isCaptured { return .yellow }
         if isCapturing { return .orange }
-        if isDetecting { return .green }
+        if isLocked { return .green }
+        if isDetecting { return .mint }
         return .white
     }
 
@@ -197,7 +197,8 @@ struct CardFinderOverlay: View {
         if isSearching { return "Searching Pokemon database..." }
         if isCaptured { return "Captured" }
         if isCapturing { return "Capturing..." }
-        if isDetecting { return "Card detected - tap scan" }
+        if isLocked { return "READY - card locked" }
+        if isDetecting { return "Hold still..." }
         return "Align card in frame"
     }
 
@@ -224,14 +225,23 @@ struct CardFinderOverlay: View {
 
                 // Corner brackets
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(borderColor, lineWidth: isCaptured || isSearching ? 4 : 2)
+                    .stroke(borderColor, lineWidth: isLocked || isCaptured || isSearching ? 4 : 2)
                     .frame(width: w, height: h)
                     .offset(x: x - geo.size.width / 2 + w / 2,
                             y: y - geo.size.height / 2 + h / 2)
-                    .shadow(color: borderColor.opacity(isCaptured || isSearching ? 0.9 : 0.35), radius: capturePulse ? 24 : 8)
+                    .shadow(color: borderColor.opacity(isLocked || isCaptured || isSearching ? 0.9 : 0.35), radius: capturePulse ? 24 : 8)
                     .scaleEffect(capturePulse ? 1.025 : 1)
                     .animation(.easeInOut(duration: 0.22), value: isDetecting)
+                    .animation(.easeInOut(duration: 0.16), value: isLocked)
                     .animation(.spring(response: 0.22, dampingFraction: 0.7), value: capturePulse)
+
+                if isDetecting && !isLocked {
+                    ProgressView(value: min(max(lockProgress, 0), 1))
+                        .progressViewStyle(.linear)
+                        .tint(.mint)
+                        .frame(width: w * 0.72)
+                        .offset(y: y - geo.size.height / 2 + h + 18)
+                }
 
                 VStack {
                     Spacer()
@@ -242,6 +252,10 @@ struct CardFinderOverlay: View {
                                 .scaleEffect(0.75)
                         } else if isCaptured {
                             Image(systemName: "checkmark.circle.fill")
+                        } else if isLocked {
+                            Image(systemName: "checkmark.seal.fill")
+                        } else if isDetecting {
+                            Image(systemName: "viewfinder")
                         }
                         Text(statusText)
                     }
@@ -262,6 +276,7 @@ struct CardFinderOverlay: View {
 
 struct CardMatchResultSheet: View {
     let result: IdentificationResult
+    let capturedImage: UIImage?
     let onSave: (CardMatch) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var selectedMatch: CardMatch?
@@ -270,6 +285,13 @@ struct CardMatchResultSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let first = result.matches.first {
+                    Section {
+                        MatchRevealView(capturedImage: capturedImage, match: first)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    }
+                }
+
                 Section {
                     ForEach(result.matches) { match in
                         CardMatchRow(match: match) {
@@ -296,6 +318,82 @@ struct CardMatchResultSheet: View {
                 if let match = selectedMatch {
                     CardDetailView(card: match)
                 }
+            }
+        }
+    }
+}
+
+struct MatchRevealView: View {
+    let capturedImage: UIImage?
+    let match: CardMatch
+    @State private var revealDatabaseCard = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.black.opacity(0.04))
+
+                if let capturedImage {
+                    Image(uiImage: capturedImage)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(14)
+                        .opacity(revealDatabaseCard ? 0 : 1)
+                        .scaleEffect(revealDatabaseCard ? 0.88 : 1)
+                        .blur(radius: revealDatabaseCard ? 3 : 0)
+                }
+
+                AsyncImage(url: URL(string: match.imageURL)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(14)
+                            .opacity(revealDatabaseCard ? 1 : 0)
+                            .scaleEffect(revealDatabaseCard ? 1 : 0.82)
+                    case .failure:
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(.secondary)
+                    case .empty:
+                        ProgressView()
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+
+                VStack {
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.seal.fill")
+                        Text("Matched in Pokemon database")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 7)
+                    .padding(.horizontal, 12)
+                    .background(.green.opacity(0.92), in: Capsule())
+                    .opacity(revealDatabaseCard ? 1 : 0)
+                    .offset(y: revealDatabaseCard ? 0 : 12)
+                    .padding(.bottom, 12)
+                }
+            }
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Text(match.name)
+                .font(.headline)
+            Text("\(match.setName) · #\(match.collectorNumber)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear {
+            revealDatabaseCard = false
+            withAnimation(.spring(response: 0.48, dampingFraction: 0.82).delay(0.35)) {
+                revealDatabaseCard = true
             }
         }
     }

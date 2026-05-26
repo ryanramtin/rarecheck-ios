@@ -1,6 +1,7 @@
 import Vision
 import CoreImage
 import UIKit
+import ImageIO
 
 // MARK: - Card Detector
 // Uses VNDetectRectanglesRequest to find the card bounding box in a frame/image
@@ -10,18 +11,19 @@ final class CardDetector {
 
     // Returns the cropped, perspective-corrected card image
     func detectAndCrop(from image: UIImage) async -> UIImage? {
-        guard let cgImage = image.cgImage else { return nil }
-        return await detectAndCrop(from: cgImage)
+        let normalized = image.normalizedUp()
+        guard let cgImage = normalized.cgImage else { return nil }
+        return await detectAndCrop(from: cgImage, orientation: .up)
     }
 
     func detectAndCrop(from pixelBuffer: CVPixelBuffer) async -> UIImage? {
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let context = CIContext()
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
-        return await detectAndCrop(from: cgImage)
+        return await detectAndCrop(from: cgImage, orientation: .right)
     }
 
-    private func detectAndCrop(from cgImage: CGImage) async -> UIImage? {
+    private func detectAndCrop(from cgImage: CGImage, orientation: CGImagePropertyOrientation) async -> UIImage? {
         return await withCheckedContinuation { continuation in
             let request = VNDetectRectanglesRequest { request, _ in
                 guard let results = request.results as? [VNRectangleObservation],
@@ -40,7 +42,7 @@ final class CardDetector {
             request.minimumConfidence = 0.7
             request.maximumObservations = 1
 
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
             try? handler.perform([request])
         }
     }
@@ -92,8 +94,18 @@ final class CardDetector {
         request.minimumConfidence = 0.65
         request.maximumObservations = 1
 
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
         try? handler.perform([request])
         return result
+    }
+}
+
+private extension UIImage {
+    func normalizedUp() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }

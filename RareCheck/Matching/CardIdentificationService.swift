@@ -28,8 +28,11 @@ final class CardIdentificationService: ObservableObject {
     func identify(image: UIImage) async throws -> IdentificationResult {
         let start = Date()
 
-        // Step 1: Detect and crop card from image
-        let cardImage = await cardDetector.detectAndCrop(from: image) ?? image
+        // Step 1: Detect and crop card from image. If we cannot find a
+        // trading-card rectangle, do not send a random room photo to lookup.
+        guard let cardImage = await cardDetector.detectAndCrop(from: image) else {
+            throw CardIdentificationError.noCardDetected
+        }
 
         // Step 2: Run OCR + pHash concurrently
         async let ocrResult = ocrService.extractCardInfo(from: cardImage)
@@ -38,6 +41,11 @@ final class CardIdentificationService: ObservableObject {
         }.value
 
         let (ocr, hash) = try await (ocrResult, imageHash)
+        let candidateNames = fallbackNameCandidates(from: ocr)
+
+        guard !candidateNames.isEmpty else {
+            throw CardIdentificationError.noReadableCardText
+        }
 
         // Step 3: Attempt local resolution
         if let localMatches = await localMatch(ocr: ocr, imageHash: hash),
@@ -48,7 +56,7 @@ final class CardIdentificationService: ObservableObject {
         }
 
         // Step 4: Fall back to API
-        let compressed = cardImage.jpegData(compressionQuality: 0.7) ?? Data()
+        let compressed = cardImage.jpegData(compressionQuality: 0.55) ?? Data()
         let hints = CardIdentifyOCRHints(
             name: ocr.name,
             collectorNumber: ocr.collectorNumber,
@@ -58,7 +66,7 @@ final class CardIdentificationService: ObservableObject {
         var apiResponse = try await api.identifyCard(imageData: compressed, ocrHints: hints)
 
         if apiResponse.matches.isEmpty {
-            for candidate in fallbackNameCandidates(from: ocr) {
+            for candidate in candidateNames {
                 guard candidate.caseInsensitiveCompare(ocr.name ?? "") != .orderedSame else { continue }
                 let candidateHints = CardIdentifyOCRHints(
                     name: candidate,
@@ -72,6 +80,10 @@ final class CardIdentificationService: ObservableObject {
                     break
                 }
             }
+        }
+
+        guard !apiResponse.matches.isEmpty else {
+            throw CardIdentificationError.noPokemonMatch(candidateNames)
         }
 
         let ms = Int(Date().timeIntervalSince(start) * 1000)
@@ -260,6 +272,8 @@ extension PriceData {
 @MainActor
 final class CardScannerViewModel: ObservableObject {
     @Published var isDetecting = false
+    @Published var isLocked = false
+    @Published var lockProgress = 0.0
     @Published var isProcessing = false
     @Published var identificationResult: IdentificationResult?
     @Published var lastError: String?
@@ -274,27 +288,21 @@ final class CardScannerViewModel: ObservableObject {
 
     private var frameThrottle = 0
     private var consecutiveDetections = 0
-    private let autoCaptureThreshold = 3  // ~1.5s of stable detection
+    private let lockThreshold = 2  // quick but stable enough to avoid room photos
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1
-        guard frameThrottle % 15 == 0 else { return }  // Check every ~0.5s at 30fps
+        guard frameThrottle % 6 == 0 else { return }  // Check about 5x/sec at 30fps
         let hasCard = CardDetector.shared.hasCard(in: buffer)
         Task { @MainActor in
             self.isDetecting = hasCard
-            // Auto-capture once we've seen a card for N consecutive ticks AND
-            // we aren't already processing a previous capture.
             if hasCard {
-                self.consecutiveDetections += 1
-                if self.consecutiveDetections >= self.autoCaptureThreshold,
-                   !self.isProcessing,
-                   self.identificationResult == nil {
-                    self.shouldAutoCapture = true
-                    self.consecutiveDetections = 0
-                }
+                self.consecutiveDetections = min(self.consecutiveDetections + 1, self.lockThreshold)
             } else {
                 self.consecutiveDetections = 0
             }
+            self.isLocked = self.consecutiveDetections >= self.lockThreshold
+            self.lockProgress = Double(self.consecutiveDetections) / Double(self.lockThreshold)
         }
     }
 
@@ -307,6 +315,9 @@ final class CardScannerViewModel: ObservableObject {
         do {
             let result = try await identificationService.identify(image: image)
             identificationResult = result
+        } catch let scanError as CardIdentificationError {
+            lastError = scanError.errorDescription ?? "Card scan failed."
+            print("[RareCheck] Identification scan gate: \(scanError)")
         } catch let urlError as URLError {
             lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
             print("[RareCheck] Identification URLError: \(urlError)")
@@ -326,4 +337,25 @@ final class CardScannerViewModel: ObservableObject {
 
 extension IdentificationResult: Identifiable {
     var id: String { "\(processingTimeMs)-\(matches.first?.id ?? "unknown")" }
+}
+
+enum CardIdentificationError: LocalizedError {
+    case noCardDetected
+    case noReadableCardText
+    case noPokemonMatch([String])
+
+    var errorDescription: String? {
+        switch self {
+        case .noCardDetected:
+            return "No trading card was captured. Align one card inside the frame until the border turns green, then scan again."
+        case .noReadableCardText:
+            return "I found a card shape, but couldn't read a Pokemon card name. Move closer, reduce glare, and hold steady until READY."
+        case .noPokemonMatch(let candidates):
+            let names = candidates.prefix(3).joined(separator: ", ")
+            if names.isEmpty {
+                return "No Pokemon database match found. Try moving closer and keeping the card flat in the frame."
+            }
+            return "No Pokemon database match found for: \(names). Try moving closer, reducing glare, and centering the card name."
+        }
+    }
 }

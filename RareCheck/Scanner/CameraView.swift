@@ -49,7 +49,8 @@ struct ScannerContainerView: View {
                         isCapturing: cameraVM.isCapturing,
                         isCaptured: capturedPreview != nil,
                         isSearching: scannerVM.isProcessing,
-                        capturePulse: capturePulse
+                        capturePulse: capturePulse,
+                        capturedImage: capturedPreview
                     )
 
                     VStack {
@@ -183,6 +184,8 @@ struct CardFinderOverlay: View {
     var isCaptured: Bool
     var isSearching: Bool
     var capturePulse: Bool
+    var capturedImage: UIImage?
+    @State private var searchStartDate = Date()
 
     private var borderColor: Color {
         if isSearching { return .cyan }
@@ -224,6 +227,21 @@ struct CardFinderOverlay: View {
                     )
 
                 // Corner brackets
+                if let capturedImage {
+                    Image(uiImage: capturedImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: w, height: h)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.black.opacity(isSearching ? 0.08 : 0))
+                        )
+                        .offset(x: x - geo.size.width / 2 + w / 2,
+                                y: y - geo.size.height / 2 + h / 2)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                }
+
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(borderColor, lineWidth: isLocked || isCaptured || isSearching ? 4 : 2)
                     .frame(width: w, height: h)
@@ -245,20 +263,7 @@ struct CardFinderOverlay: View {
 
                 VStack {
                     Spacer()
-                    HStack(spacing: 8) {
-                        if isSearching {
-                            ProgressView()
-                                .tint(.white)
-                                .scaleEffect(0.75)
-                        } else if isCaptured {
-                            Image(systemName: "checkmark.circle.fill")
-                        } else if isLocked {
-                            Image(systemName: "checkmark.seal.fill")
-                        } else if isDetecting {
-                            Image(systemName: "viewfinder")
-                        }
-                        Text(statusText)
-                    }
+                    statusPill
                         .font(.caption)
                         .foregroundStyle(.white)
                         .padding(.vertical, 6)
@@ -268,7 +273,49 @@ struct CardFinderOverlay: View {
                 }
             }
         }
+        .onChange(of: isSearching) { _, searching in
+            if searching { searchStartDate = Date() }
+        }
         .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private var statusPill: some View {
+        if isSearching {
+            TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                HStack(spacing: 8) {
+                    RotatingPokeballView()
+                    Text("Searching Pokemon DB \(max(0, Int(context.date.timeIntervalSince(searchStartDate))))s")
+                }
+            }
+        } else {
+            HStack(spacing: 8) {
+                if isCaptured {
+                    Image(systemName: "checkmark.circle.fill")
+                } else if isLocked {
+                    Image(systemName: "checkmark.seal.fill")
+                } else if isDetecting {
+                    Image(systemName: "viewfinder")
+                }
+                Text(statusText)
+            }
+        }
+    }
+
+}
+
+struct RotatingPokeballView: View {
+    @State private var rotation = 0.0
+
+    var body: some View {
+        Image("Pokeball")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+            .clipShape(Circle())
+            .rotationEffect(.degrees(rotation))
+            .onAppear { rotation = 360 }
+            .animation(.linear(duration: 0.9).repeatForever(autoreverses: false), value: rotation)
     }
 }
 
@@ -311,7 +358,12 @@ struct CardMatchResultSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if let first = result.matches.first {
+                            onSave(first)
+                        }
+                        dismiss()
+                    }
                 }
             }
             .navigationDestination(isPresented: $navigateToDetail) {

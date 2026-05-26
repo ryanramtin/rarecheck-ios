@@ -56,34 +56,32 @@ final class CardIdentificationService: ObservableObject {
             return IdentificationResult(matches: localMatches, source: .local, processingTimeMs: ms)
         }
 
-        // Step 4: Fall back to API
-        let compressed = cardImage.jpegData(compressionQuality: 0.55) ?? Data()
-        let hints = CardIdentifyOCRHints(
-            name: ocr.name,
-            collectorNumber: ocr.collectorNumber,
-            setCode: ocr.setCode,
-            rawText: ocr.rawText
-        )
-        var apiResponse = try await api.identifyCard(imageData: compressed, ocrHints: hints)
+        // Step 4: Fall back to API. Use the cleaned name candidates in
+        // priority order instead of first sending the full OCR blob. That
+        // avoids slow, low-quality DB searches for attacks like "Scratch"
+        // before the actual Pokemon name.
+        let lookupImage = cardImage.resizedForRareCheckLookup(maxDimension: 900)
+        let compressed = lookupImage.jpegData(compressionQuality: 0.48) ?? Data()
+        let apiCandidates = Array(candidateNames.prefix(4))
+        print("[RareCheck] Pokemon DB candidates: \(apiCandidates)")
+        var apiResponse = CardIdentifyResponse(matches: [], processingTimeMs: 0)
 
-        apiResponse = apiResponse.filtered(minConfidence: apiConfidenceThreshold)
-
-        if apiResponse.matches.isEmpty {
-            for candidate in candidateNames {
-                guard candidate.caseInsensitiveCompare(ocr.name ?? "") != .orderedSame else { continue }
-                let candidateHints = CardIdentifyOCRHints(
-                    name: candidate,
-                    collectorNumber: ocr.collectorNumber,
-                    setCode: ocr.setCode,
-                    rawText: nil
-                )
-                let candidateResponse = try await api
-                    .identifyCard(imageData: compressed, ocrHints: candidateHints)
-                    .filtered(minConfidence: apiConfidenceThreshold)
-                if !candidateResponse.matches.isEmpty {
-                    apiResponse = candidateResponse
-                    break
-                }
+        for candidate in apiCandidates {
+            let candidateStart = Date()
+            let candidateHints = CardIdentifyOCRHints(
+                name: candidate,
+                collectorNumber: ocr.collectorNumber,
+                setCode: ocr.setCode,
+                rawText: nil
+            )
+            let candidateResponse = try await api
+                .identifyCard(imageData: compressed, ocrHints: candidateHints)
+                .filtered(minConfidence: apiConfidenceThreshold)
+            let elapsed = Int(Date().timeIntervalSince(candidateStart) * 1000)
+            print("[RareCheck] Pokemon DB lookup '\(candidate)' returned \(candidateResponse.matches.count) confident matches in \(elapsed)ms")
+            if !candidateResponse.matches.isEmpty {
+                apiResponse = candidateResponse
+                break
             }
         }
 
@@ -208,7 +206,7 @@ final class CardIdentificationService: ObservableObject {
             .components(separatedBy: .newlines)
             .forEach { add($0) }
 
-        return candidates.prefix(8).map { $0 }
+        return candidates.prefix(6).map { $0 }
     }
 
     private func cleanNameCandidate(_ value: String) -> String? {
@@ -224,10 +222,30 @@ final class CardIdentificationService: ObservableObject {
         guard cleaned.range(of: #"^(basic|stage\s+\d+|trainer|energy|weakness|resistance|retreat)$"#, options: [.regularExpression, .caseInsensitive]) == nil else {
             return nil
         }
+        guard cleaned.range(of: #"^(scratch|live coal|call for family|tail whip|ember|tackle|quick attack|flamethrower|fire spin|attached energy|does damage|this attack|during your next turn|opponent|active pokemon|bench|evolves from|illus\.?|no\.)$"#, options: [.regularExpression, .caseInsensitive]) == nil else {
+            return nil
+        }
+        guard cleaned.range(of: #"\b(weakness|resistance|retreat|damage|opponent|energy attached|your turn|coin|discard|bench|evolves from|illus\.?|©|tm)\b"#, options: [.regularExpression, .caseInsensitive]) == nil else {
+            return nil
+        }
         guard cleaned.range(of: #"^(basic\s+)?(grass|fire|water|lightning|psychic|fighting|darkness|metal|fairy|dragon)?\s*energy$"#, options: [.regularExpression, .caseInsensitive]) == nil else {
             return nil
         }
         return cleaned
+    }
+}
+
+private extension UIImage {
+    func resizedForRareCheckLookup(maxDimension: CGFloat) -> UIImage {
+        let largestSide = max(size.width, size.height)
+        guard largestSide > maxDimension, largestSide > 0 else { return self }
+
+        let scale = maxDimension / largestSide
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 }
 

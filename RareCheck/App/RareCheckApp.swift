@@ -5,6 +5,7 @@ import RevenueCat
 struct RareCheckApp: App {
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @StateObject private var persistenceController = PersistenceController.shared
+    @StateObject private var appNavigation = AppNavigationState()
 
     init() {
         configureRevenueCat()
@@ -14,6 +15,7 @@ struct RareCheckApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(subscriptionManager)
+                .environmentObject(appNavigation)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }

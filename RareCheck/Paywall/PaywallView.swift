@@ -59,7 +59,7 @@ struct PaywallView: View {
             }
             .padding(.top, 20)
 
-            Text("Poké Rare Check Pro")
+            Text("Poke Rare Check Pro")
                 .font(.system(size: 32, weight: .black, design: .rounded))
 
             Text("Unlock the full power of your collection")

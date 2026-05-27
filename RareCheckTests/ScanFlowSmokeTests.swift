@@ -67,8 +67,9 @@ final class ScanFlowSmokeTests: XCTestCase {
             XCTFail("Unexpected success — got \(result.matches.count) matches from \(result.source). Local index should be empty.")
         } catch let urlError as URLError {
             // Expected: API fallback hits the configured baseURL
-            // (https://rarecheck-api.railway.app by default) which is not
-            // deployed — we get a connection error.
+            // (Info.plist/APIClient currently defaults to the Railway
+            // production host) and may fail with a connection-class error
+            // if the backend is unavailable.
             print("[smoke] OK — API fallback failed as expected: \(urlError.code.rawValue) \(urlError.localizedDescription)")
             XCTAssertTrue(
                 [.cannotFindHost, .cannotConnectToHost, .notConnectedToInternet, .timedOut, .dnsLookupFailed]

@@ -1,32 +1,59 @@
 import SwiftUI
 
-struct ContentView: View {
-    @EnvironmentObject var subscriptionManager: SubscriptionManager
-    @State private var selectedTab: Tab = .scanner
-
+@MainActor
+final class AppNavigationState: ObservableObject {
     enum Tab {
-        case scanner, collection, settings
+        case scanner
+        case collection
+        case settings
     }
 
+    struct CollectionSaveNotice: Equatable {
+        let cardName: String
+        let outcome: PersistenceController.SaveOutcome
+
+        var message: String {
+            switch outcome {
+            case .inserted:
+                return "\(cardName) added to your collection"
+            case .updated:
+                return "\(cardName) refreshed in your collection"
+            }
+        }
+    }
+
+    @Published var selectedTab: Tab = .scanner
+    @Published var collectionSaveNotice: CollectionSaveNotice?
+
+    func showCollection(for cardName: String, outcome: PersistenceController.SaveOutcome) {
+        collectionSaveNotice = CollectionSaveNotice(cardName: cardName, outcome: outcome)
+        selectedTab = .collection
+    }
+}
+
+struct ContentView: View {
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var appNavigation: AppNavigationState
+
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $appNavigation.selectedTab) {
             ScannerContainerView()
                 .tabItem {
                     Label("Scan", systemImage: "camera.viewfinder")
                 }
-                .tag(Tab.scanner)
+                .tag(AppNavigationState.Tab.scanner)
 
             CollectionView()
                 .tabItem {
                     Label("Collection", systemImage: "rectangle.stack")
                 }
-                .tag(Tab.collection)
+                .tag(AppNavigationState.Tab.collection)
 
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .tag(Tab.settings)
+                .tag(AppNavigationState.Tab.settings)
         }
         .tint(.red)
     }

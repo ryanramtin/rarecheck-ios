@@ -82,10 +82,9 @@ final class RealCardScanTests: XCTestCase {
                 print("  [\(i)] \(match.name) — \(match.setName) #\(match.collectorNumber) — \(match.rarity) — \(Int(match.confidence * 100))% — $\(match.price.market)")
             }
             // On a cold install the local index is empty, so any success must
-            // be from the API path. The current backend at
-            // rarecheck-api.railway.app returns 404, so we don't actually
-            // expect success here — but if the backend ever resolves, the
-            // pipeline will surface real matches.
+            // be from the API path. This test still depends on whichever
+            // API host is configured in the app, so offline/misconfigured
+            // environments will fail here even if the local pipeline is fine.
         } catch let urlError as URLError {
             print("[identify] URLError: \(urlError.code.rawValue) \(urlError.localizedDescription)")
         } catch {

@@ -365,7 +365,7 @@ final class CardScannerViewModel: ObservableObject {
         }
     }
 
-    func saveCard(_ card: CardMatch) {
+    func saveCard(_ card: CardMatch) -> PersistenceController.SaveOutcome {
         persistenceController.saveCard(card)
     }
 }

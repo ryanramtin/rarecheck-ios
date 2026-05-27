@@ -7,6 +7,11 @@ import SwiftUI
 final class PersistenceController: ObservableObject {
     static let shared = PersistenceController()
 
+    enum SaveOutcome {
+        case inserted
+        case updated
+    }
+
     let container: NSPersistentContainer
 
     // Free tier limit
@@ -41,7 +46,8 @@ final class PersistenceController: ObservableObject {
 
     // MARK: - Save Card
 
-    func saveCard(_ card: CardMatch) {
+    @discardableResult
+    func saveCard(_ card: CardMatch) -> SaveOutcome {
         let ctx = container.viewContext
 
         // Existing saves should be refreshed when the database returns better
@@ -49,9 +55,9 @@ final class PersistenceController: ObservableObject {
         let fetchRequest: NSFetchRequest<SavedCard> = NSFetchRequest<SavedCard>(entityName: "SavedCard")
         fetchRequest.predicate = NSPredicate(format: "cardId == %@", card.id)
         if let existing = try? ctx.fetch(fetchRequest), let saved = existing.first {
-            apply(card, to: saved, preserveAddedAt: true)
+            apply(card, to: saved, preserveAddedAt: false)
             try? ctx.save()
-            return
+            return .updated
         }
 
         // Use the entity from our container's model explicitly, so we don't
@@ -63,6 +69,7 @@ final class PersistenceController: ObservableObject {
         saved.addedAt = Date()
 
         try? ctx.save()
+        return .inserted
     }
 
     private func apply(_ card: CardMatch, to saved: SavedCard, preserveAddedAt: Bool) {
@@ -75,8 +82,9 @@ final class PersistenceController: ObservableObject {
         saved.setCode = card.setCode
         saved.collectorNumber = card.collectorNumber
         saved.rarity = card.rarity
-        if !card.imageURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            saved.imageURL = card.imageURL
+        let preferredImageURL = card.preferredCollectionImageURL
+        if !preferredImageURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            saved.imageURL = preferredImageURL
         }
         saved.currentPriceLow = card.price.low
         saved.currentPriceMid = card.price.mid

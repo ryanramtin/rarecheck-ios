@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Poké Rare Check</string>
+	<string>Poke Rare Check</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,9 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Poké Rare Check</string>
+	<string>Poke Rare Check</string>
+	<key>API_BASE_URL</key>
+	<string>https://rarecheck-api-production.up.railway.app</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,9 +25,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Poké Rare Check uses the camera to scan Pokémon cards.</string>
+	<string>Poke Rare Check uses the camera to scan Pokemon cards.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Poké Rare Check can scan cards from your photo library.</string>
+	<string>Poke Rare Check can scan cards from your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -3,9 +3,11 @@ import CoreData
 
 struct CollectionView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var appNavigation: AppNavigationState
     @StateObject private var viewModel = CollectionViewModel()
     @State private var showPaywall = false
     @State private var layout: Layout = .grid
+    @State private var visibleSaveNotice: AppNavigationState.CollectionSaveNotice?
     @Environment(\.managedObjectContext) private var moc
 
     enum Layout { case grid, list }
@@ -70,6 +72,30 @@ struct CollectionView: View {
                 ShareSheet(text: viewModel.csvContent)
             }
             .sheet(isPresented: $showPaywall) { PaywallView() }
+            .safeAreaInset(edge: .top) {
+                if let visibleSaveNotice {
+                    saveNoticeBanner(visibleSaveNotice)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .onChange(of: appNavigation.collectionSaveNotice) { _, notice in
+                guard let notice else { return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    visibleSaveNotice = notice
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 2_400_000_000)
+                    guard visibleSaveNotice == notice else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        visibleSaveNotice = nil
+                    }
+                    if appNavigation.collectionSaveNotice == notice {
+                        appNavigation.collectionSaveNotice = nil
+                    }
+                }
+            }
         }
     }
 
@@ -149,6 +175,22 @@ struct CollectionView: View {
         } description: {
             Text("Scan your first Pokémon card to start your collection.")
         }
+    }
+
+    private func saveNoticeBanner(_ notice: AppNavigationState.CollectionSaveNotice) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: notice.outcome == .inserted ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath.circle.fill")
+                .foregroundStyle(.white)
+            Text(notice.message)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.green.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
     }
 
     // MARK: - Toolbar Controls

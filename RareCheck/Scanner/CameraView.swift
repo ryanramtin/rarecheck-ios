@@ -27,6 +27,7 @@ struct ScannerContainerView: View {
     @StateObject private var cameraVM = CameraViewModel()
     @StateObject private var scannerVM = CardScannerViewModel()
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var appNavigation: AppNavigationState
     @State private var capturedPreview: UIImage?
     @State private var resultCapture: UIImage?
     @State private var pendingLockedCapture = false
@@ -111,7 +112,8 @@ struct ScannerContainerView: View {
             }
             .sheet(item: $scannerVM.identificationResult) { result in
                 CardMatchResultSheet(result: result, capturedImage: resultCapture, onSave: { card in
-                    scannerVM.saveCard(card)
+                    let outcome = scannerVM.saveCard(card)
+                    appNavigation.showCollection(for: card.name, outcome: outcome)
                 })
                 .environmentObject(subscriptionManager)
                 .onDisappear {
@@ -162,7 +164,7 @@ struct ScannerContainerView: View {
         ContentUnavailableView {
             Label("Camera Access Required", systemImage: "camera.fill")
         } description: {
-            Text("Poké Rare Check needs camera access to scan cards.")
+            Text("Poke Rare Check needs camera access to scan cards.")
         } actions: {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -200,7 +202,7 @@ struct CardFinderOverlay: View {
         if isSearching { return "Searching Pokemon database..." }
         if isCaptured { return "Captured" }
         if isCapturing { return "Capturing..." }
-        if isLocked { return "READY - card locked" }
+        if isLocked { return "LOCKED - tap shutter" }
         if isDetecting { return "Hold still..." }
         return "Align card in frame"
     }

@@ -40,12 +40,13 @@ targets:
     info:
       path: RareCheck/Resources/Info.plist
       properties:
-        CFBundleName: Poké Rare Check
-        CFBundleDisplayName: Poké Rare Check
+        CFBundleName: Poke Rare Check
+        CFBundleDisplayName: Poke Rare Check
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0"
-        NSCameraUsageDescription: "Poké Rare Check uses the camera to scan Pokémon cards."
-        NSPhotoLibraryUsageDescription: "Poké Rare Check can scan cards from your photo library."
+        API_BASE_URL: "https://rarecheck-api-production.up.railway.app"
+        NSCameraUsageDescription: "Poke Rare Check uses the camera to scan Pokemon cards."
+        NSPhotoLibraryUsageDescription: "Poke Rare Check can scan cards from your photo library."
         UILaunchScreen:
           UIColorName: ""
           UIImageName: ""

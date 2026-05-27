@@ -5,9 +5,12 @@ import Foundation
 actor APIClient {
     static let shared = APIClient()
 
-    // Set this to your Railway deployment URL in production
-    private let baseURL = ProcessInfo.processInfo.environment["API_BASE_URL"]
-        ?? "https://rarecheck-api-production.up.railway.app"
+    private let baseURL: String = {
+        let configured = ProcessInfo.processInfo.environment["API_BASE_URL"]
+            ?? (Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String)
+            ?? "https://rarecheck-api-production.up.railway.app"
+        return APIClient.normalizedBaseURL(configured)
+    }()
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -72,9 +75,19 @@ actor APIClient {
     private func validateResponse(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         guard (200...299).contains(http.statusCode) else {
-            let message = (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.message
+            let errorBody = try? JSONDecoder().decode(APIErrorBody.self, from: data)
+            let message = errorBody?.message ?? errorBody?.error
             throw APIError.httpError(statusCode: http.statusCode, message: message)
         }
+    }
+}
+
+private extension APIClient {
+    static func normalizedBaseURL(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "https://rarecheck-api-production.up.railway.app" }
+        let noTrailingSlash = trimmed.replacingOccurrences(of: #"/+$"#, with: "", options: .regularExpression)
+        return noTrailingSlash.replacingOccurrences(of: #"/api$"#, with: "", options: .regularExpression)
     }
 }
 
@@ -105,7 +118,10 @@ enum APIError: LocalizedError {
     }
 }
 
-private struct APIErrorBody: Decodable { let message: String }
+private struct APIErrorBody: Decodable {
+    let message: String?
+    let error: String?
+}
 
 // MARK: - Keychain Helper (minimal)
 

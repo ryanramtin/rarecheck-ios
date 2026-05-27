@@ -14,6 +14,20 @@ struct CardMatch: Codable, Identifiable, Hashable {
     let price: PriceData
 
     var confidencePercent: Int { Int(confidence * 100) }
+    var preferredCollectionImageURL: String {
+        let cleaned = imageURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.contains("images.pokemontcg.io") {
+            return cleaned
+        }
+
+        let setComponent = setCode.isEmpty ? id.split(separator: "-").first.map(String.init) ?? "" : setCode
+        let numberComponent = collectorNumber.isEmpty ? id.split(separator: "-").dropFirst().first.map(String.init) ?? "" : collectorNumber
+        if !setComponent.isEmpty, !numberComponent.isEmpty {
+            return "https://images.pokemontcg.io/\(setComponent)/\(numberComponent)_hires.png"
+        }
+
+        return cleaned
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -143,6 +157,7 @@ struct CardIdentifyOCRHints: Encodable {
         case name
         case collectorNumber
         case setCode
+        case rawText
     }
 }
 

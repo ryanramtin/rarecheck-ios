@@ -96,7 +96,7 @@ Both mockups show character-led notification cards (Pikachu/Charizard/Mewtwo/Eev
 
 ### 8. RevenueCat placeholder key
 
-`RareCheckApp.swift:23` ships with `"appl_REPLACE_WITH_YOUR_REVENUECAT_KEY"`. App will crash on first launch in production. Needs a real RevenueCat account + key + product IDs (`app.rarecheck.pro.monthly`, `app.rarecheck.pro.annual`) in ASC.
+`RareCheckApp.swift:23` ships with `"appl_REPLACE_WITH_YOUR_REVENUECAT_KEY"`. App will crash on first launch in production. Needs a real RevenueCat account + key + product IDs (`com.appgumbo.rarecheck.pro.monthly`, `com.appgumbo.rarecheck.pro.annual`) in ASC.
 
 ### 9. ✅ File-name vs. struct-name mismatch — RESOLVED
 

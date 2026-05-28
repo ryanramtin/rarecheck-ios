@@ -98,8 +98,8 @@ open RareCheck.xcodeproj
    Purchases.configure(withAPIKey: "YOUR_KEY_HERE")
    ```
 3. Create products in App Store Connect:
-   - Monthly: `app.rarecheck.pro.monthly` ($4.99/mo)
-   - Annual: `app.rarecheck.pro.annual` ($19.99/yr)
+   - Monthly: `com.appgumbo.rarecheck.pro.monthly` ($4.99/mo)
+   - Annual: `com.appgumbo.rarecheck.pro.annual` ($19.99/yr)
 4. Set entitlement ID `"pro"` in RevenueCat dashboard
 
 ### Backend

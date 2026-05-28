@@ -45,6 +45,7 @@ targets:
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0"
         API_BASE_URL: "https://rarecheck-api-production.up.railway.app"
+        REVENUECAT_API_KEY: "$(REVENUECAT_API_KEY)"
         NSCameraUsageDescription: "Poke Rare Check uses the camera to scan Pokemon cards."
         NSPhotoLibraryUsageDescription: "Poke Rare Check can scan cards from your photo library."
         UILaunchScreen:

@@ -2,6 +2,8 @@ import RevenueCat
 import SwiftUI
 import Combine
 
+private let purchaseUnavailableMessage = "Purchases are unavailable in this build. Configure REVENUECAT_API_KEY for App Store or TestFlight purchase testing."
+
 // MARK: - Subscription Manager
 // Single source of truth for Pro entitlement state via RevenueCat
 
@@ -12,18 +14,35 @@ final class SubscriptionManager: ObservableObject {
     @Published private(set) var isPro = false
     @Published private(set) var offerings: Offerings?
     @Published private(set) var isLoading = false
+    @Published private(set) var isConfigured = false
     @Published var errorMessage: String?
 
     // RevenueCat entitlement ID — set in RC dashboard
     static let proEntitlementID = "pro"
 
-    private init() {
+    private init() {}
+
+    func configure(apiKey rawAPIKey: String?) {
+        let apiKey = rawAPIKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard isUsableRevenueCatKey(apiKey) else {
+            errorMessage = purchaseUnavailableMessage
+            print("[RevenueCat] Skipping configuration: missing RevenueCat API key.")
+            return
+        }
+
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: apiKey)
+        isConfigured = true
+        errorMessage = nil
+
         Task { await refreshStatus() }
     }
 
     // MARK: - Status Check
 
     func refreshStatus() async {
+        guard isConfigured else { return }
+
         do {
             let info = try await Purchases.shared.customerInfo()
             isPro = info.entitlements[Self.proEntitlementID]?.isActive == true
@@ -35,6 +54,11 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Load Offerings
 
     func loadOfferings() async {
+        guard isConfigured else {
+            errorMessage = purchaseUnavailableMessage
+            return
+        }
+
         guard offerings == nil else { return }
         isLoading = true
         defer { isLoading = false }
@@ -48,6 +72,11 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Purchase
 
     func purchase(package: Package) async throws {
+        guard isConfigured else {
+            errorMessage = purchaseUnavailableMessage
+            throw SubscriptionError.purchasesUnavailable
+        }
+
         isLoading = true
         defer { isLoading = false }
         let result = try await Purchases.shared.purchase(package: package)
@@ -57,6 +86,11 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Restore
 
     func restorePurchases() async {
+        guard isConfigured else {
+            errorMessage = purchaseUnavailableMessage
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
         do {
@@ -65,6 +99,20 @@ final class SubscriptionManager: ObservableObject {
         } catch {
             errorMessage = "Restore failed: \(error.localizedDescription)"
         }
+    }
+
+    private func isUsableRevenueCatKey(_ apiKey: String) -> Bool {
+        !apiKey.isEmpty &&
+        !apiKey.contains("REPLACE") &&
+        !apiKey.contains("$(")
+    }
+}
+
+private enum SubscriptionError: LocalizedError {
+    case purchasesUnavailable
+
+    var errorDescription: String? {
+        purchaseUnavailableMessage
     }
 }
 

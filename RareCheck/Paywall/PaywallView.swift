@@ -23,6 +23,8 @@ struct PaywallView: View {
                     featureList
                     if subscriptionManager.isLoading {
                         ProgressView().padding()
+                    } else if !subscriptionManager.isConfigured {
+                        purchasesUnavailableView
                     } else {
                         pricingCards
                         purchaseButton
@@ -171,6 +173,23 @@ struct PaywallView: View {
             .background(.red, in: RoundedRectangle(cornerRadius: 14))
         }
         .disabled(selectedPackage == nil || isPurchasing)
+    }
+
+    private var purchasesUnavailableView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title2)
+                .foregroundStyle(.orange)
+            Text("Purchases unavailable")
+                .font(.headline)
+            Text(subscriptionManager.errorMessage ?? "Purchases are not configured for this build.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Footer

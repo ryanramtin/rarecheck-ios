@@ -16,6 +16,8 @@
 	<string>Poke Rare Check</string>
 	<key>API_BASE_URL</key>
 	<string>https://rarecheck-api-production.up.railway.app</string>
+	<key>REVENUECAT_API_KEY</key>
+	<string>$(REVENUECAT_API_KEY)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

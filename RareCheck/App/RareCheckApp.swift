@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCat
 
 @main
 struct RareCheckApp: App {
@@ -8,7 +7,7 @@ struct RareCheckApp: App {
     @StateObject private var appNavigation = AppNavigationState()
 
     init() {
-        configureRevenueCat()
+        configurePurchases()
     }
 
     var body: some Scene {
@@ -23,9 +22,8 @@ struct RareCheckApp: App {
         }
     }
 
-    private func configureRevenueCat() {
-        // Replace with your actual RevenueCat API key from dashboard
-        Purchases.configure(withAPIKey: "appl_REPLACE_WITH_YOUR_REVENUECAT_KEY")
-        Purchases.logLevel = .debug
+    private func configurePurchases() {
+        let apiKey = Bundle.main.object(forInfoDictionaryKey: "REVENUECAT_API_KEY") as? String
+        subscriptionManager.configure(apiKey: apiKey)
     }
 }

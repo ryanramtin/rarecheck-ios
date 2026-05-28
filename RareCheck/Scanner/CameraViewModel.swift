@@ -68,7 +68,7 @@ final class CameraViewModel: NSObject, ObservableObject {
         // Video data output for live card detection
         let videoOut = AVCaptureVideoDataOutput()
         videoOut.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        videoOut.setSampleBufferDelegate(self, queue: DispatchQueue(label: "com.rarecheck.videoQueue"))
+        videoOut.setSampleBufferDelegate(self, queue: DispatchQueue(label: "com.appgumbo.rarecheck.videoQueue"))
         videoOut.alwaysDiscardsLateVideoFrames = true
         if session.canAddOutput(videoOut) {
             session.addOutput(videoOut)

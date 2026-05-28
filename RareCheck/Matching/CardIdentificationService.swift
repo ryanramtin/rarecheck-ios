@@ -297,7 +297,54 @@ final class LocalCardIndex {
         try? JSONEncoder().encode(records).write(to: cacheURL)
     }
 
-    func refreshFromPokemonTCGIfNeeded(maxPages: Int = 8, pageSize: Int = 250) async {
+    var recordCount: Int {
+        index?.count ?? 0
+    }
+
+    func searchCards(matching query: String, limit: Int = 80) -> [CardMatch] {
+        let normalizedQuery = Self.normalizedSearchText(query)
+        guard !normalizedQuery.isEmpty, let index else { return [] }
+        let terms = normalizedQuery.split(separator: " ").map(String.init)
+
+        return index
+            .compactMap { record -> (record: LocalCardRecord, score: Int)? in
+                let name = Self.normalizedSearchText(record.name)
+                let set = Self.normalizedSearchText(record.setName)
+                let number = Self.normalizedSearchText(record.collectorNumber)
+                let code = Self.normalizedSearchText(record.setCode)
+                let haystack = "\(name) \(set) \(number) \(code)"
+
+                guard terms.allSatisfy({ haystack.contains($0) }) else { return nil }
+
+                var score = 0
+                if name == normalizedQuery { score += 100 }
+                if name.hasPrefix(normalizedQuery) { score += 60 }
+                if name.contains(normalizedQuery) { score += 35 }
+                if number == normalizedQuery || code == normalizedQuery { score += 30 }
+                score += max(0, 20 - name.count / 4)
+                return (record, score)
+            }
+            .sorted {
+                if $0.score == $1.score { return $0.record.name < $1.record.name }
+                return $0.score > $1.score
+            }
+            .prefix(limit)
+            .map { item in
+                CardMatch(
+                    id: item.record.id,
+                    name: item.record.name,
+                    setName: item.record.setName,
+                    setCode: item.record.setCode,
+                    collectorNumber: item.record.collectorNumber,
+                    rarity: item.record.rarity,
+                    imageURL: item.record.imageURL,
+                    confidence: 1,
+                    price: item.record.lastKnownPrice ?? .zero
+                )
+            }
+    }
+
+    func refreshFromPokemonTCGIfNeeded(maxPages: Int = 120, pageSize: Int = 250) async {
         guard !isRefreshing else { return }
         guard shouldRefreshCache else { return }
 
@@ -334,6 +381,15 @@ final class LocalCardIndex {
             return records
         }
         return nil
+    }
+
+    private static func normalizedSearchText(_ value: String) -> String {
+        value
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .replacingOccurrences(of: #"[^a-zA-Z0-9]+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
     }
 }
 

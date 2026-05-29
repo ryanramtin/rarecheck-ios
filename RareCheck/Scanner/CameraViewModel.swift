@@ -62,7 +62,7 @@ final class CameraViewModel: NSObject, ObservableObject {
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
             photoOutput.isHighResolutionCaptureEnabled = true
-            photoOutput.maxPhotoQualityPrioritization = .quality
+            photoOutput.maxPhotoQualityPrioritization = .balanced
         }
 
         // Video data output for live card detection
@@ -102,7 +102,7 @@ final class CameraViewModel: NSObject, ObservableObject {
         let settings = AVCapturePhotoSettings()
         settings.flashMode = .auto
         settings.isHighResolutionPhotoEnabled = true
-        settings.photoQualityPrioritization = .quality
+        settings.photoQualityPrioritization = .balanced
         photoOutput.capturePhoto(with: settings, delegate: self)
     }
 

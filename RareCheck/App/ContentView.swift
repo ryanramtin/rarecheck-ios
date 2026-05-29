@@ -40,7 +40,7 @@ struct ContentView: View {
         TabView(selection: $appNavigation.selectedTab) {
             ScannerContainerView()
                 .tabItem {
-                    Label("Scan", systemImage: "camera.viewfinder")
+                    Label("Scan", systemImage: "viewfinder")
                 }
                 .tag(AppNavigationState.Tab.scanner)
 

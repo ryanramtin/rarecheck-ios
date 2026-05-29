@@ -102,6 +102,27 @@ final class RareCheckTests: XCTestCase {
         XCTAssertFalse(viewModel.isProcessing)
     }
 
+    func testScanErrorBlocksAutoRecaptureUntilDismissed() {
+        let viewModel = CardScannerViewModel()
+        let frame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.18, y: 0.22, width: 0.56, height: 0.72),
+            confidence: 0.92
+        )
+
+        viewModel.applyDetection(frame)
+        XCTAssertTrue(viewModel.shouldAutoCapture)
+
+        viewModel.markCaptureStarted()
+        viewModel.lastError = "Try again"
+        viewModel.markCaptureFinished()
+        viewModel.applyDetection(frame)
+        XCTAssertFalse(viewModel.shouldAutoCapture)
+
+        viewModel.clearErrorAndResumeScanning()
+        viewModel.applyDetection(frame)
+        XCTAssertTrue(viewModel.shouldAutoCapture)
+    }
+
     func testLocalSearchFindsBundledSeedCardByName() {
         let results = LocalCardIndex.shared.searchCards(matching: "Bulbasaur")
         XCTAssertEqual(results.first?.id, "det1-1")

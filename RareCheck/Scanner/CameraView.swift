@@ -94,7 +94,7 @@ struct ScannerContainerView: View {
                     await MainActor.run {
                         withAnimation(.easeOut(duration: 0.2)) { capturePulse = false }
                     }
-                    await scannerVM.identify(image: preparedImage)
+                    await scannerVM.identifyPreparedCard(image: preparedImage)
                     await MainActor.run {
                         scannerVM.markCaptureFinished()
                         withAnimation(.easeOut(duration: 0.2)) {
@@ -115,7 +115,7 @@ struct ScannerContainerView: View {
                 }
                 isAutoCapturePending = true
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 80_000_000)
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                     defer { isAutoCapturePending = false }
                     guard scannerVM.shouldAutoCapture,
                           scannerVM.isLocked,
@@ -131,7 +131,7 @@ struct ScannerContainerView: View {
             // silent. Most likely cause today: API backend not deployed,
             // so a real card scan times out after 30s.
             .alert("Scan failed", isPresented: .constant(scannerVM.lastError != nil)) {
-                Button("OK") { scannerVM.lastError = nil }
+                Button("OK") { scannerVM.clearErrorAndResumeScanning() }
             } message: {
                 Text(scannerVM.lastError ?? "")
             }
@@ -206,10 +206,10 @@ struct CardFinderOverlay: View {
 
     private var statusText: String {
         if isSearching { return "Searching Pokemon database..." }
-        if isCaptured { return "Captured" }
-        if isCapturing { return "Capturing card..." }
-        if isAutoCapturePending { return "Hold still - capturing" }
-        if isLocked { return "Ready - hold still" }
+        if isCaptured { return "Captured - keep card in frame" }
+        if isCapturing { return "Capturing now" }
+        if isAutoCapturePending { return "Auto-capturing now" }
+        if isLocked { return "Ready - auto capture armed" }
         if isFramed { return "Framed - hold still" }
         if isDetecting { return "Center card in frame" }
         return "Align card in frame"
@@ -284,6 +284,33 @@ struct CardFinderOverlay: View {
                     .background(.black.opacity(0.55), in: Capsule())
                     .offset(x: x - geo.size.width / 2 + w * 0.25,
                             y: y - geo.size.height / 2 - 18)
+                }
+
+                if isAutoCapturePending || isCapturing || isCaptured {
+                    VStack(spacing: 8) {
+                        if isCaptured {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 44, weight: .bold))
+                        } else {
+                            ProgressView()
+                                .tint(.white)
+                                .controlSize(.large)
+                        }
+                        Text(isCaptured ? "Captured" : "Auto capturing")
+                            .font(.headline.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 16)
+                    .background(statusBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(.white.opacity(0.24), lineWidth: 1)
+                    )
+                    .shadow(color: statusBackground.opacity(0.65), radius: 22)
+                    .offset(x: x - geo.size.width / 2 + w / 2,
+                            y: y - geo.size.height / 2 + h / 2)
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
                 }
 
                 VStack {

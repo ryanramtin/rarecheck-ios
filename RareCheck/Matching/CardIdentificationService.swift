@@ -36,6 +36,14 @@ final class CardIdentificationService: ObservableObject {
             throw CardIdentificationError.noCardDetected
         }
 
+        return try await identify(cardImage: cardImage, start: start)
+    }
+
+    func identifyPreparedCard(image cardImage: UIImage) async throws -> IdentificationResult {
+        try await identify(cardImage: cardImage, start: Date())
+    }
+
+    private func identify(cardImage: UIImage, start: Date) async throws -> IdentificationResult {
         // Step 2: Run OCR + pHash concurrently
         let pHashMatcher = self.pHashMatcher
         async let ocrResult = ocrService.extractCardInfo(from: cardImage)
@@ -722,8 +730,8 @@ final class CardScannerViewModel: ObservableObject {
     private var stableFrameCount = 0
     private var lastDetectedFrame: DetectedCardFrame?
     private var autoCaptureArmed = true
-    private let analysisThrottle = 2
-    private let lockThreshold = 2
+    private let analysisThrottle = 1
+    private let lockThreshold = 1
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1
@@ -758,6 +766,30 @@ final class CardScannerViewModel: ObservableObject {
         }
     }
 
+    func identifyPreparedCard(image: UIImage) async {
+        guard !isProcessing else { return }
+        isProcessing = true
+        lastError = nil
+        defer { isProcessing = false }
+
+        do {
+            let result = try await identificationService.identifyPreparedCard(image: image)
+            identificationResult = result
+        } catch let scanError as CardIdentificationError {
+            lastError = scanError.errorDescription ?? "Card scan failed."
+            print("[RareCheck] Identification scan gate: \(scanError)")
+        } catch let urlError as URLError {
+            lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
+            print("[RareCheck] Identification URLError: \(urlError)")
+        } catch let apiError as APIError {
+            lastError = apiError.errorDescription ?? "Card lookup service returned an error."
+            print("[RareCheck] Identification APIError: \(apiError)")
+        } catch {
+            lastError = "Identification failed: \(error.localizedDescription)"
+            print("[RareCheck] Identification error: \(error)")
+        }
+    }
+
     func saveCard(_ card: CardMatch) -> PersistenceController.SaveOutcome {
         persistenceController.saveCard(card)
     }
@@ -772,9 +804,16 @@ final class CardScannerViewModel: ObservableObject {
     }
 
     func markCaptureFinished() {
-        if !isLocked {
+        shouldAutoCapture = false
+        if identificationResult == nil && lastError == nil {
             autoCaptureArmed = true
         }
+    }
+
+    func clearErrorAndResumeScanning() {
+        lastError = nil
+        shouldAutoCapture = false
+        autoCaptureArmed = true
     }
 
     func applyDetection(_ detectedFrame: DetectedCardFrame?) {
@@ -816,7 +855,10 @@ final class CardScannerViewModel: ObservableObject {
             return
         }
 
-        guard autoCaptureArmed, !isProcessing else { return }
+        guard autoCaptureArmed,
+              !isProcessing,
+              identificationResult == nil,
+              lastError == nil else { return }
         shouldAutoCapture = true
     }
 }

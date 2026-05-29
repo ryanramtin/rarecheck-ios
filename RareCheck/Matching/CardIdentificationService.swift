@@ -261,6 +261,7 @@ final class CardIdentificationService: ObservableObject {
         if a == b { return 1 }
         let aChars = Array(a)
         let bChars = Array(b)
+        guard !aChars.isEmpty, !bChars.isEmpty else { return 0 }
         let matchRange = max(0, max(aChars.count, bChars.count) / 2 - 1)
         var aMatches = [Bool](repeating: false, count: aChars.count)
         var bMatches = [Bool](repeating: false, count: bChars.count)
@@ -282,8 +283,10 @@ final class CardIdentificationService: ObservableObject {
         var k = 0
         for i in 0..<aChars.count {
             if !aMatches[i] { continue }
-            guard k < bMatches.count else { break }
-            while k < bMatches.count, !bMatches[k] { k += 1 }
+            while k < bMatches.count {
+                if bMatches[k] { break }
+                k += 1
+            }
             guard k < bChars.count else { break }
             if aChars[i] != bChars[k] { transpositions += 1 }
             k += 1

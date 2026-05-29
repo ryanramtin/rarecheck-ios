@@ -119,6 +119,15 @@ final class RareCheckTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(results.first?.confidence ?? 0, 0.90)
     }
 
+    func testNoisyOCRCandidatesDoNotLeakIntoScanFailureCopy() {
+        let error = CardIdentificationError.noConfidentPokemonMatch(["- 110", "- 110 G", "jes of 3"])
+        let message = error.errorDescription ?? ""
+
+        XCTAssertFalse(message.contains("110"))
+        XCTAssertFalse(message.contains("jes of 3"))
+        XCTAssertTrue(message.contains("card name"))
+    }
+
     func testFreeLimitEnforcement() {
         let controller = PersistenceController(inMemory: true)
         XCTAssertFalse(controller.isAtFreeLimit())

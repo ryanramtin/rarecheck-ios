@@ -50,16 +50,12 @@ struct ScannerContainerView: View {
                         isLocked: scannerVM.isLocked,
                         lockProgress: scannerVM.lockProgress,
                         isCapturing: cameraVM.isCapturing,
+                        isAutoCapturePending: isAutoCapturePending,
                         isCaptured: capturedPreview != nil,
                         isSearching: scannerVM.isProcessing,
                         capturePulse: capturePulse,
                         capturedImage: capturedPreview
                     )
-
-                    VStack {
-                        Spacer()
-                        scannerControlsBar
-                    }
                 } else {
                     permissionDeniedView
                 }
@@ -119,7 +115,7 @@ struct ScannerContainerView: View {
                 }
                 isAutoCapturePending = true
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 180_000_000)
+                    try? await Task.sleep(nanoseconds: 80_000_000)
                     defer { isAutoCapturePending = false }
                     guard scannerVM.shouldAutoCapture,
                           scannerVM.isLocked,
@@ -158,32 +154,6 @@ struct ScannerContainerView: View {
         }
     }
 
-    private var scannerControlsBar: some View {
-        HStack(spacing: 32) {
-            Spacer()
-            // Capture button — identification is triggered by .onChange of
-            // capturedImage above, not synchronously here, because
-            // capturePhoto() is async (delegate fires on the next frame).
-            Button {
-                triggerCapture()
-            } label: {
-                ZStack {
-                    Circle().fill(.white).frame(width: 72, height: 72)
-                    Circle().stroke(.white.opacity(0.4), lineWidth: 4).frame(width: 84, height: 84)
-                    if cameraVM.isCapturing || scannerVM.isProcessing {
-                        ProgressView().tint(.black)
-                    } else {
-                        Image(systemName: "camera.fill").font(.title2).foregroundStyle(.black)
-                    }
-                }
-            }
-            .disabled(!scannerVM.isLocked || scannerVM.isProcessing)
-            .opacity(scannerVM.isLocked || scannerVM.isProcessing ? 1 : 0.6)
-            Spacer()
-        }
-        .padding(.bottom, 40)
-    }
-
     private var permissionDeniedView: some View {
         ContentUnavailableView {
             Label("Camera Access Required", systemImage: "camera.fill")
@@ -218,6 +188,7 @@ struct CardFinderOverlay: View {
     var isLocked: Bool
     var lockProgress: Double
     var isCapturing: Bool
+    var isAutoCapturePending: Bool
     var isCaptured: Bool
     var isSearching: Bool
     var capturePulse: Bool
@@ -227,7 +198,7 @@ struct CardFinderOverlay: View {
     private var borderColor: Color {
         if isSearching { return .cyan }
         if isCaptured { return .yellow }
-        if isCapturing { return .orange }
+        if isCapturing || isAutoCapturePending { return .orange }
         if isLocked { return .green }
         if isDetecting { return .mint }
         return .white
@@ -236,7 +207,8 @@ struct CardFinderOverlay: View {
     private var statusText: String {
         if isSearching { return "Searching Pokemon database..." }
         if isCaptured { return "Captured" }
-        if isCapturing { return "Capturing..." }
+        if isCapturing { return "Capturing card..." }
+        if isAutoCapturePending { return "Hold still - capturing" }
         if isLocked { return "Ready - hold still" }
         if isFramed { return "Framed - hold still" }
         if isDetecting { return "Center card in frame" }
@@ -281,14 +253,15 @@ struct CardFinderOverlay: View {
                 }
 
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(borderColor, lineWidth: isLocked || isCaptured || isSearching ? 4 : 2)
+                    .stroke(borderColor, lineWidth: isLocked || isCaptured || isSearching || isCapturing || isAutoCapturePending ? 5 : 2)
                     .frame(width: w, height: h)
                     .offset(x: x - geo.size.width / 2 + w / 2,
                             y: y - geo.size.height / 2 + h / 2)
-                    .shadow(color: borderColor.opacity(isLocked || isCaptured || isSearching ? 0.9 : 0.35), radius: capturePulse ? 24 : 8)
-                    .scaleEffect(capturePulse ? 1.025 : 1)
+                    .shadow(color: borderColor.opacity(isLocked || isCaptured || isSearching || isCapturing || isAutoCapturePending ? 0.95 : 0.35), radius: capturePulse || isAutoCapturePending ? 24 : 8)
+                    .scaleEffect(capturePulse || isAutoCapturePending ? 1.025 : 1)
                     .animation(.easeInOut(duration: 0.22), value: isDetecting)
                     .animation(.easeInOut(duration: 0.16), value: isLocked)
+                    .animation(.easeInOut(duration: 0.12), value: isAutoCapturePending)
                     .animation(.spring(response: 0.22, dampingFraction: 0.7), value: capturePulse)
 
                 if isDetecting && !isLocked {
@@ -316,12 +289,13 @@ struct CardFinderOverlay: View {
                 VStack {
                     Spacer()
                     statusPill
-                        .font(.caption)
+                        .font(.callout.weight(.bold))
                         .foregroundStyle(.white)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
-                        .background(.black.opacity(0.5), in: Capsule())
-                        .padding(.bottom, geo.size.height * 0.35)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
+                        .background(statusBackground, in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
+                        .padding(.bottom, max(90, geo.size.height * 0.30))
                 }
             }
         }
@@ -344,6 +318,10 @@ struct CardFinderOverlay: View {
             HStack(spacing: 8) {
                 if isCaptured {
                     Image(systemName: "checkmark.circle.fill")
+                } else if isCapturing || isAutoCapturePending {
+                    ProgressView()
+                        .tint(.white)
+                        .controlSize(.small)
                 } else if isLocked {
                     Image(systemName: "checkmark.seal.fill")
                 } else if isFramed {
@@ -354,6 +332,14 @@ struct CardFinderOverlay: View {
                 Text(statusText)
             }
         }
+    }
+
+    private var statusBackground: Color {
+        if isSearching { return .cyan.opacity(0.78) }
+        if isCaptured { return .yellow.opacity(0.78) }
+        if isCapturing || isAutoCapturePending { return .orange.opacity(0.82) }
+        if isLocked { return .green.opacity(0.78) }
+        return .black.opacity(0.58)
     }
 
 }

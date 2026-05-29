@@ -318,6 +318,11 @@ final class CardIdentificationService: ObservableObject {
 
         guard cleaned.count >= 3, cleaned.count <= 60 else { return nil }
         guard cleaned.range(of: #"^\d+$"#, options: .regularExpression) == nil else { return nil }
+        guard cleaned.range(of: #"^[0-9 .:-]"#, options: .regularExpression) == nil else { return nil }
+        guard cleaned.range(of: #"\s\d+\b"#, options: .regularExpression) == nil else { return nil }
+        let letters = cleaned.filter(\.isLetter).count
+        let digits = cleaned.filter(\.isNumber).count
+        guard letters >= 3, digits <= 1 else { return nil }
         guard cleaned.range(of: #"^(basic|stage\s+\d+|trainer|energy|weakness|resistance|retreat)$"#, options: [.regularExpression, .caseInsensitive]) == nil else {
             return nil
         }
@@ -717,8 +722,8 @@ final class CardScannerViewModel: ObservableObject {
     private var stableFrameCount = 0
     private var lastDetectedFrame: DetectedCardFrame?
     private var autoCaptureArmed = true
-    private let analysisThrottle = 3
-    private let lockThreshold = 4
+    private let analysisThrottle = 2
+    private let lockThreshold = 2
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1
@@ -832,12 +837,27 @@ enum CardIdentificationError: LocalizedError {
         case .noReadableCardText:
             return "I found a card shape, but couldn't read a Pokemon card name. Move closer, reduce glare, and hold steady until READY."
         case .noConfidentPokemonMatch(let candidates):
-            let names = candidates.prefix(3).joined(separator: ", ")
+            let names = candidates
+                .compactMap(Self.displayableCandidate)
+                .prefix(3)
+                .joined(separator: ", ")
             if names.isEmpty {
-                return "No Pokemon database match found. Try moving closer and keeping the card flat in the frame."
+                return "I found a card shape, but couldn't read a confident Pokemon card name. Move closer, reduce glare, and center the card name."
             }
             return "No confident Pokemon database match found for: \(names). Try moving closer, reducing glare, and centering the card name."
         }
+    }
+
+    private static func displayableCandidate(_ value: String) -> String? {
+        let cleaned = value
+            .replacingOccurrences(of: #"[^A-Za-z0-9 '.:-]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard cleaned.count >= 3, cleaned.count <= 40 else { return nil }
+        guard cleaned.range(of: #"^[0-9 .:-]|^\d+$|\s\d+\b"#, options: .regularExpression) == nil else { return nil }
+        guard cleaned.filter(\.isLetter).count >= 3 else { return nil }
+        return cleaned
     }
 }
 

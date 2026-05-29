@@ -36,6 +36,8 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.appgumbo.rarecheck
       DEVELOPMENT_TEAM: "377C4V6762"
+      TARGETED_DEVICE_FAMILY: "1"
+      SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
       INFOPLIST_FILE: RareCheck/Resources/Info.plist
     info:
       path: RareCheck/Resources/Info.plist

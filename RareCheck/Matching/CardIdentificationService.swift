@@ -742,6 +742,7 @@ final class CardScannerViewModel: ObservableObject {
     @Published var identificationResult: IdentificationResult?
     @Published var lastError: String?
     @Published var isFramed = false
+    @Published var captureReadiness: CaptureReadiness = .findingEdges
 
     @Published var shouldAutoCapture = false
 
@@ -753,7 +754,7 @@ final class CardScannerViewModel: ObservableObject {
     private var lastDetectedFrame: DetectedCardFrame?
     private var autoCaptureArmed = true
     private let analysisThrottle = 1
-    private let lockThreshold = 1
+    private let lockThreshold = 3
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1
@@ -843,6 +844,7 @@ final class CardScannerViewModel: ObservableObject {
 
         guard let detectedFrame else {
             isFramed = false
+            captureReadiness = .findingEdges
             stableFrameCount = 0
             lastDetectedFrame = nil
             isLocked = false
@@ -853,9 +855,19 @@ final class CardScannerViewModel: ObservableObject {
         }
 
         isFramed = detectedFrame.isUsablyFramed
+        captureReadiness = detectedFrame.captureReadiness
         guard isFramed else {
             stableFrameCount = 0
             lastDetectedFrame = nil
+            isLocked = false
+            lockProgress = 0
+            shouldAutoCapture = false
+            return
+        }
+
+        guard captureReadiness == .ready else {
+            stableFrameCount = 0
+            lastDetectedFrame = detectedFrame
             isLocked = false
             lockProgress = 0
             shouldAutoCapture = false

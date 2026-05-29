@@ -48,6 +48,7 @@ struct ScannerContainerView: View {
                     CardFinderOverlay(
                         isDetecting: scannerVM.isDetecting,
                         isFramed: scannerVM.isFramed,
+                        captureReadiness: scannerVM.captureReadiness,
                         isLocked: scannerVM.isLocked,
                         lockProgress: scannerVM.lockProgress,
                         isCapturing: cameraVM.isCapturing,
@@ -198,6 +199,7 @@ struct ScannerContainerView: View {
 struct CardFinderOverlay: View {
     var isDetecting: Bool
     var isFramed: Bool
+    var captureReadiness: CaptureReadiness
     var isLocked: Bool
     var lockProgress: Double
     var isCapturing: Bool
@@ -215,6 +217,7 @@ struct CardFinderOverlay: View {
         if isCaptured { return .yellow }
         if isCapturing || isAutoCapturePending { return .orange }
         if isLocked { return .green }
+        if isFramed && captureReadiness != .ready { return .orange }
         if isDetecting { return .mint }
         return .white
     }
@@ -225,7 +228,7 @@ struct CardFinderOverlay: View {
         if isCapturing { return "Hold still - capturing" }
         if isAutoCapturePending { return "Hold still - auto capture" }
         if isLocked { return "Ready - hold still" }
-        if isFramed { return canManualCapture ? "Framed - hold or tap frame" : "Framed - hold still" }
+        if isFramed { return canManualCapture ? "\(captureReadiness.guidanceText) or tap frame" : captureReadiness.guidanceText }
         if isDetecting { return canManualCapture ? "Center card or tap frame" : "Center card in frame" }
         return "Align card in frame"
     }
@@ -292,11 +295,19 @@ struct CardFinderOverlay: View {
                 }
 
                 if isDetecting && !isLocked {
-                    ProgressView(value: min(max(lockProgress, 0), 1))
-                        .progressViewStyle(.linear)
-                        .tint(.mint)
-                        .frame(width: w * 0.72)
-                        .offset(y: y - geo.size.height / 2 + h + 18)
+                    VStack(spacing: 8) {
+                        ProgressView(value: min(max(lockProgress, 0), 1))
+                            .progressViewStyle(.linear)
+                            .tint(captureReadiness == .ready ? .green : .mint)
+                            .frame(width: w * 0.72)
+                        Text(captureReadiness.guidanceText)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(statusBackground, in: Capsule())
+                    }
+                    .offset(y: y - geo.size.height / 2 + h + 25)
                 }
 
                 if isSearching {
@@ -399,6 +410,8 @@ struct CardFinderOverlay: View {
         if isCaptured { return .yellow.opacity(0.78) }
         if isCapturing || isAutoCapturePending { return .orange.opacity(0.82) }
         if isLocked { return .green.opacity(0.78) }
+        if isFramed && captureReadiness != .ready { return .orange.opacity(0.72) }
+        if isFramed { return .mint.opacity(0.72) }
         return .black.opacity(0.58)
     }
 

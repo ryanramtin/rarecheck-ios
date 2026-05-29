@@ -27,11 +27,45 @@ struct DetectedCardFrame: Equatable {
             (0.08...0.92).contains(center.y)
     }
 
+    var captureReadiness: CaptureReadiness {
+        guard confidence >= 0.35 else { return .findingEdges }
+        guard area >= 0.16 else { return .moveCloser }
+        guard (0.16...0.84).contains(center.x),
+              (0.14...0.88).contains(center.y) else {
+            return .centerCard
+        }
+        guard confidence >= 0.45 else { return .reduceGlare }
+        return .ready
+    }
+
     func isStable(comparedTo previous: DetectedCardFrame) -> Bool {
         let centerShift = hypot(center.x - previous.center.x, center.y - previous.center.y)
         let areaDelta = abs(area - previous.area)
         let aspectDelta = abs(aspectRatio - previous.aspectRatio)
         return centerShift <= 0.075 && areaDelta <= 0.16 && aspectDelta <= 0.14
+    }
+}
+
+enum CaptureReadiness: Equatable {
+    case findingEdges
+    case moveCloser
+    case centerCard
+    case reduceGlare
+    case ready
+
+    var guidanceText: String {
+        switch self {
+        case .findingEdges:
+            return "Find card edges"
+        case .moveCloser:
+            return "Move closer"
+        case .centerCard:
+            return "Center card"
+        case .reduceGlare:
+            return "Reduce glare"
+        case .ready:
+            return "Ready - hold still"
+        }
     }
 }
 

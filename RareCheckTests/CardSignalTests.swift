@@ -109,18 +109,58 @@ final class RareCheckTests: XCTestCase {
             confidence: 0.92
         )
 
-        viewModel.applyDetection(frame)
+        for _ in 0..<3 {
+            viewModel.applyDetection(frame)
+        }
         XCTAssertTrue(viewModel.shouldAutoCapture)
 
         viewModel.markCaptureStarted()
         viewModel.lastError = "Try again"
         viewModel.markCaptureFinished()
-        viewModel.applyDetection(frame)
+        for _ in 0..<3 {
+            viewModel.applyDetection(frame)
+        }
         XCTAssertFalse(viewModel.shouldAutoCapture)
 
         viewModel.clearErrorAndResumeScanning()
-        viewModel.applyDetection(frame)
+        for _ in 0..<3 {
+            viewModel.applyDetection(frame)
+        }
         XCTAssertTrue(viewModel.shouldAutoCapture)
+    }
+
+    func testSmallCardGivesMoveCloserGuidanceInsteadOfAutoCapture() {
+        let viewModel = CardScannerViewModel()
+        let frame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.35, y: 0.35, width: 0.24, height: 0.34),
+            confidence: 0.92
+        )
+
+        for _ in 0..<5 {
+            viewModel.applyDetection(frame)
+        }
+
+        XCTAssertTrue(viewModel.isFramed)
+        XCTAssertEqual(viewModel.captureReadiness, .moveCloser)
+        XCTAssertFalse(viewModel.isLocked)
+        XCTAssertFalse(viewModel.shouldAutoCapture)
+    }
+
+    func testOffCenterCardGivesCenterGuidanceInsteadOfAutoCapture() {
+        let viewModel = CardScannerViewModel()
+        let frame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.02, y: 0.2, width: 0.36, height: 0.58),
+            confidence: 0.92
+        )
+
+        for _ in 0..<5 {
+            viewModel.applyDetection(frame)
+        }
+
+        XCTAssertTrue(viewModel.isFramed)
+        XCTAssertEqual(viewModel.captureReadiness, .centerCard)
+        XCTAssertFalse(viewModel.isLocked)
+        XCTAssertFalse(viewModel.shouldAutoCapture)
     }
 
     func testLocalSearchFindsBundledSeedCardByName() {

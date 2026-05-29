@@ -20,6 +20,12 @@ struct DetectedCardFrame: Equatable {
         return boundingBox.width / boundingBox.height
     }
 
+    var isUsablyFramed: Bool {
+        area >= 0.25 &&
+            (0.22...0.78).contains(center.x) &&
+            (0.18...0.82).contains(center.y)
+    }
+
     func isStable(comparedTo previous: DetectedCardFrame) -> Bool {
         let centerShift = hypot(center.x - previous.center.x, center.y - previous.center.y)
         let areaDelta = abs(area - previous.area)

@@ -237,9 +237,9 @@ struct CardFinderOverlay: View {
         if isSearching { return "Searching Pokemon database..." }
         if isCaptured { return "Captured" }
         if isCapturing { return "Capturing..." }
-        if isLocked { return "Locked - capturing" }
+        if isLocked { return "Ready - hold still" }
         if isFramed { return "Framed - hold still" }
-        if isDetecting { return "Hold still..." }
+        if isDetecting { return "Center card in frame" }
         return "Align card in frame"
     }
 

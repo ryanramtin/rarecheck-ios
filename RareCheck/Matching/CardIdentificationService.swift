@@ -399,6 +399,10 @@ final class LocalCardIndex {
         index?.count ?? 0
     }
 
+    var isUsingBundledSeed: Bool {
+        recordCount > 0 && (try? FileManager.default.attributesOfItem(atPath: cacheURL.path)) == nil
+    }
+
     func searchCards(matching query: String, limit: Int = 80) -> [CardMatch] {
         let normalizedQuery = Self.normalizedSearchText(query)
         guard !normalizedQuery.isEmpty, let index else { return [] }
@@ -770,14 +774,24 @@ final class CardScannerViewModel: ObservableObject {
 
     func applyDetection(_ detectedFrame: DetectedCardFrame?) {
         isDetecting = detectedFrame != nil
-        isFramed = detectedFrame != nil
 
         guard let detectedFrame else {
+            isFramed = false
             stableFrameCount = 0
             lastDetectedFrame = nil
             isLocked = false
             lockProgress = 0
             autoCaptureArmed = true
+            shouldAutoCapture = false
+            return
+        }
+
+        isFramed = detectedFrame.isUsablyFramed
+        guard isFramed else {
+            stableFrameCount = 0
+            lastDetectedFrame = nil
+            isLocked = false
+            lockProgress = 0
             shouldAutoCapture = false
             return
         }

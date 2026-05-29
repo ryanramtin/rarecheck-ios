@@ -79,7 +79,7 @@ struct CardSearchView: View {
                     ContentUnavailableView {
                         Label("Search Pokemon DB", systemImage: "magnifyingglass")
                     } description: {
-                        Text(recordCount > 0 ? "\(recordCount) cards cached for fast local search." : "The card database is downloading in the background.")
+                        Text(searchEmptyStateText)
                     }
                 } else if results.isEmpty {
                     ContentUnavailableView.search(text: query)
@@ -134,6 +134,18 @@ struct CardSearchView: View {
     private func updateResults() {
         results = LocalCardIndex.shared.searchCards(matching: query)
         recordCount = LocalCardIndex.shared.recordCount
+    }
+
+    private var searchEmptyStateText: String {
+        if recordCount == 0 {
+            return "Tap refresh to download the Pokemon DB for fast local search."
+        }
+
+        if LocalCardIndex.shared.isUsingBundledSeed {
+            return "\(recordCount) starter cards cached. Tap refresh to download the larger Pokemon DB for fast local search."
+        }
+
+        return "\(recordCount) cards cached for fast local search."
     }
 }
 

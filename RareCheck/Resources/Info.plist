@@ -28,8 +28,6 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Poke Rare Check uses the camera to scan Pokemon cards.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Poke Rare Check can scan cards from your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

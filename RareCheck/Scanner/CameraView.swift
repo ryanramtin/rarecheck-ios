@@ -142,9 +142,8 @@ struct ScannerContainerView: View {
                     triggerCapture()
                 }
             }
-            // Surface identification errors so "thinking → nothing" isn't
-            // silent. Most likely cause today: API backend not deployed,
-            // so a real card scan times out after 30s.
+            // Surface local identification guidance so "thinking → nothing"
+            // is not silent when OCR cannot confirm a card.
             .alert("Scan failed", isPresented: .constant(scannerVM.lastError != nil)) {
                 Button("OK") { scannerVM.clearErrorAndResumeScanning() }
             } message: {

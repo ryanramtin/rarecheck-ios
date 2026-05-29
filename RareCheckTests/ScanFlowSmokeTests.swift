@@ -45,12 +45,11 @@ final class ScanFlowSmokeTests: XCTestCase {
     }
 
     func testLocalCardIndexLoadsBundledSeedOnFreshInstall() {
-        // Cold installs ship a small bundled Pokemon TCG seed index so local
-        // lookup has immediate candidates while the larger cache refreshes in
-        // the background from Application Support storage.
+        // Cold installs ship a bundled Pokemon TCG index so local lookup has
+        // immediate coverage before any cache refresh runs.
         let index = LocalCardIndex.shared.index
         XCTAssertNotNil(index, "Index should be loaded on first call")
-        XCTAssertFalse(index?.isEmpty ?? true, "Cold install should start with bundled seed data")
+        XCTAssertGreaterThanOrEqual(index?.count ?? 0, 1_000, "Cold install should start with a broad bundled card database")
         XCTAssertTrue(index?.contains { $0.id == "det1-1" && $0.name == "Bulbasaur" } ?? false)
     }
 
@@ -62,15 +61,15 @@ final class ScanFlowSmokeTests: XCTestCase {
             .first
         let url = try XCTUnwrap(seedURL, "Seed card index should be copied into a test-visible bundle")
         let records = try JSONDecoder().decode([LocalCardRecord].self, from: Data(contentsOf: url))
-        XCTAssertGreaterThanOrEqual(records.count, 5)
+        XCTAssertGreaterThanOrEqual(records.count, 1_000)
         XCTAssertTrue(records.contains { $0.id == "det1-1" && $0.name == "Bulbasaur" })
     }
 
     /// End-to-end: cold install + dummy image. Confirms the pipeline runs
-    /// without crashing and falls through to the API path (which then fails
-    /// fast because no backend is reachable).
+    /// without crashing and does not depend on the remote identification API
+    /// when the bundled local Pokemon DB is available.
     @MainActor
-    func testIdentifyEndToEndWithDummyImageFallsBackToAPIAndFailsConnect() async {
+    func testIdentifyEndToEndWithDummyImageStaysLocalWhenDBIsBundled() async {
         let service = CardIdentificationService.shared
         let img = dummyImage(color: .systemYellow, size: CGSize(width: 1024, height: 1024))
 
@@ -79,21 +78,12 @@ final class ScanFlowSmokeTests: XCTestCase {
             // Seed data is present on cold install, but a flat dummy image
             // should not produce a confident card match.
             XCTFail("Unexpected success — got \(result.matches.count) matches from \(result.source).")
+        } catch let scanError as CardIdentificationError {
+            XCTAssertNotNil(scanError.errorDescription)
         } catch let urlError as URLError {
-            // Expected: API fallback hits the configured baseURL
-            // (Info.plist/APIClient currently defaults to the Railway
-            // production host) and may fail with a connection-class error
-            // if the backend is unavailable.
-            print("[smoke] OK — API fallback failed as expected: \(urlError.code.rawValue) \(urlError.localizedDescription)")
-            XCTAssertTrue(
-                [.cannotFindHost, .cannotConnectToHost, .notConnectedToInternet, .timedOut, .dnsLookupFailed]
-                    .contains(urlError.code),
-                "Expected a connection-class URLError, got \(urlError.code)"
-            )
+            XCTFail("Bundled local DB scans should not surface remote service failures, got \(urlError)")
         } catch {
-            // Any other error type still tells us the pipeline reached the
-            // API stage without crashing — record it for the report.
-            print("[smoke] API fallback raised non-URLError: \(error)")
+            XCTFail("Expected a local scan gate error, got \(error)")
         }
     }
 }

@@ -81,11 +81,10 @@ final class RealCardScanTests: XCTestCase {
             for (i, match) in result.matches.prefix(3).enumerated() {
                 print("  [\(i)] \(match.name) — \(match.setName) #\(match.collectorNumber) — \(match.rarity) — \(Int(match.confidence * 100))% — $\(match.price.market)")
             }
-            // This can resolve locally from the seed/full index or fall back
-            // to the configured API host, so offline environments may still
-            // fail even if the local pipeline is fine.
+            // This should resolve locally from the bundled/full index when
+            // OCR can read enough of the card.
         } catch let urlError as URLError {
-            print("[identify] URLError: \(urlError.code.rawValue) \(urlError.localizedDescription)")
+            XCTFail("Scan should not depend on the remote identification service: \(urlError.code.rawValue) \(urlError.localizedDescription)")
         } catch {
             print("[identify] error: \(error)")
         }

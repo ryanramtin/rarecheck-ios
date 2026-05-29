@@ -166,7 +166,7 @@ final class RareCheckTests: XCTestCase {
 
     func testLocalSearchFindsBundledSeedCardByName() {
         let results = LocalCardIndex.shared.searchCards(matching: "Bulbasaur")
-        XCTAssertEqual(results.first?.id, "det1-1")
+        XCTAssertTrue(results.contains { $0.id == "det1-1" && $0.name == "Bulbasaur" })
         XCTAssertEqual(results.first?.name, "Bulbasaur")
     }
 

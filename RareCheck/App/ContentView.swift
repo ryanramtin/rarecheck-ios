@@ -144,7 +144,7 @@ struct CardSearchView: View {
             return "\(recordCount) starter cards cached. Tap refresh to retry the larger Pokemon DB download."
         }
 
-        return "Full local DB active on this iPhone with \(recordCount) cards."
+        return "Local Pokemon DB active on this iPhone with \(recordCount) cards."
     }
 
     @ViewBuilder
@@ -157,7 +157,7 @@ struct CardSearchView: View {
             } else if LocalCardIndex.shared.isFullIndexAvailable {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("Full local DB: \(recordCount) cards on this iPhone")
+                Text("Local Pokemon DB: \(recordCount) cards on this iPhone")
             } else if recordCount > 0 {
                 Image(systemName: "arrow.down.circle")
                     .foregroundStyle(.orange)

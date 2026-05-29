@@ -7,7 +7,7 @@ import UIKit
 //  2. Score OCR match against local name index
 //  3. Score pHash when cached artwork hashes are available
 //  4. Resolve locally when OCR/hash evidence is strong enough
-//  5. Fall back to the backend API for uncertain matches
+//  5. Use the backend API only as optional enrichment when local evidence is weak
 
 @MainActor
 final class CardIdentificationService: ObservableObject {
@@ -21,6 +21,7 @@ final class CardIdentificationService: ObservableObject {
     private let localConfidenceThreshold: Double = 0.70
     private let localTextOnlyConfidenceThreshold: Double = 0.62
     private let localRescueConfidenceThreshold: Double = 0.78
+    private let localFullIndexFallbackThreshold: Double = 0.45
     private let apiConfidenceThreshold: Double = 0.70
     private let ocrWeight: Double = 0.60
     private let hashWeight: Double = 0.40
@@ -44,14 +45,11 @@ final class CardIdentificationService: ObservableObject {
     }
 
     private func identify(cardImage: UIImage, start: Date) async throws -> IdentificationResult {
-        // Step 2: Run OCR + pHash concurrently
-        let pHashMatcher = self.pHashMatcher
-        async let ocrResult = ocrService.extractCardInfo(from: cardImage)
-        async let imageHash = Task.detached(priority: .userInitiated) {
-            pHashMatcher.hash(of: cardImage)
-        }.value
-
-        let (ocr, hash) = try await (ocrResult, imageHash)
+        // Step 2: OCR drives the bundled full-index lookup. The seed-only
+        // path still computes pHash, but normal on-device scans avoid that
+        // extra image work so capture feedback stays snappy.
+        let ocr = try await ocrService.extractCardInfo(from: cardImage)
+        let hash = LocalCardIndex.shared.isFullIndexAvailable ? nil : pHashMatcher.hash(of: cardImage)
         let candidateNames = fallbackNameCandidates(from: ocr)
         let localRescueMatches = LocalCardIndex.shared.bestOCRRescueMatches(
             candidateNames: candidateNames,
@@ -76,6 +74,18 @@ final class CardIdentificationService: ObservableObject {
             let ms = Int(Date().timeIntervalSince(start) * 1000)
             print("[RareCheck] Resolved locally via OCR rescue candidates")
             return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
+        }
+
+        if LocalCardIndex.shared.isFullIndexAvailable,
+           let bestRescue = localRescueMatches.first,
+           bestRescue.confidence >= localFullIndexFallbackThreshold {
+            let ms = Int(Date().timeIntervalSince(start) * 1000)
+            print("[RareCheck] Showing best local Pokemon DB candidates without remote lookup")
+            return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
+        }
+
+        guard !LocalCardIndex.shared.isFullIndexAvailable else {
+            throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
         }
 
         // Step 4: Fall back to API. Use the cleaned name candidates in
@@ -113,7 +123,7 @@ final class CardIdentificationService: ObservableObject {
                 print("[RareCheck] API lookup failed; using local OCR rescue candidates")
                 return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
             }
-            throw error
+            throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
         }
 
         guard !apiResponse.matches.isEmpty else {
@@ -260,6 +270,7 @@ final class CardIdentificationService: ObservableObject {
         for i in 0..<aChars.count {
             let start = max(0, i - matchRange)
             let end = min(i + matchRange + 1, bChars.count)
+            guard start < end else { continue }
             for j in start..<end {
                 if bMatches[j] || aChars[i] != bChars[j] { continue }
                 aMatches[i] = true; bMatches[j] = true; matches += 1; break
@@ -271,7 +282,9 @@ final class CardIdentificationService: ObservableObject {
         var k = 0
         for i in 0..<aChars.count {
             if !aMatches[i] { continue }
-            while !bMatches[k] { k += 1 }
+            guard k < bMatches.count else { break }
+            while k < bMatches.count, !bMatches[k] { k += 1 }
+            guard k < bChars.count else { break }
             if aChars[i] != bChars[k] { transpositions += 1 }
             k += 1
         }
@@ -433,11 +446,13 @@ final class LocalCardIndex {
     }
 
     var isUsingBundledSeed: Bool {
-        recordCount > 0 && (try? FileManager.default.attributesOfItem(atPath: cacheURL.path)) == nil
+        recordCount > 0 &&
+        recordCount < 1_000 &&
+        (try? FileManager.default.attributesOfItem(atPath: cacheURL.path)) == nil
     }
 
     var isFullIndexAvailable: Bool {
-        recordCount > 0 && !isUsingBundledSeed
+        recordCount >= 1_000 || (recordCount > 0 && !isUsingBundledSeed)
     }
 
     var cacheUpdatedAt: Date? {
@@ -816,7 +831,7 @@ final class CardScannerViewModel: ObservableObject {
             handleScanError(scanError)
             print("[RareCheck] Identification scan gate: \(scanError)")
         } catch let urlError as URLError {
-            lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
+            lastError = "Pokemon DB lookup is local-first now. I couldn't confirm this card yet; hold steady with the card name clear and try again."
             print("[RareCheck] Identification URLError: \(urlError)")
         } catch let apiError as APIError {
             lastError = apiError.errorDescription ?? "Card lookup service returned an error."
@@ -840,7 +855,7 @@ final class CardScannerViewModel: ObservableObject {
             handleScanError(scanError)
             print("[RareCheck] Identification scan gate: \(scanError)")
         } catch let urlError as URLError {
-            lastError = "Couldn't reach identification service (\(urlError.code.rawValue)). Backend may be offline."
+            lastError = "Pokemon DB lookup is local-first now. I couldn't confirm this card yet; hold steady with the card name clear and try again."
             print("[RareCheck] Identification URLError: \(urlError)")
         } catch let apiError as APIError {
             lastError = apiError.errorDescription ?? "Card lookup service returned an error."

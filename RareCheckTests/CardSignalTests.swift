@@ -197,6 +197,23 @@ final class RareCheckTests: XCTestCase {
         XCTAssertTrue(message.contains("card name"))
     }
 
+    func testScannerDoesNotSurfaceBackendOfflineErrorsDuringLocalScan() {
+        let viewModel = CardScannerViewModel()
+
+        viewModel.handleLocalFirstLookupFailure(URLError(.timedOut))
+        let timeoutMessage = viewModel.lastError ?? ""
+        XCTAssertFalse(timeoutMessage.localizedCaseInsensitiveContains("backend"))
+        XCTAssertFalse(timeoutMessage.localizedCaseInsensitiveContains("service"))
+        XCTAssertFalse(timeoutMessage.contains("-1001"))
+        XCTAssertTrue(timeoutMessage.contains("card name"))
+
+        viewModel.handleLocalFirstLookupFailure(APIError.httpError(statusCode: 503, message: "Backend may be offline."))
+        let apiMessage = viewModel.lastError ?? ""
+        XCTAssertFalse(apiMessage.localizedCaseInsensitiveContains("backend"))
+        XCTAssertFalse(apiMessage.localizedCaseInsensitiveContains("service"))
+        XCTAssertTrue(apiMessage.contains("card name"))
+    }
+
     func testShortOCRSimilarityDoesNotCrashScanner() async throws {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 96, height: 96)).image { context in
             UIColor.white.setFill()

@@ -831,10 +831,10 @@ final class CardScannerViewModel: ObservableObject {
             handleScanError(scanError)
             print("[RareCheck] Identification scan gate: \(scanError)")
         } catch let urlError as URLError {
-            lastError = "Pokemon DB lookup is local-first now. I couldn't confirm this card yet; hold steady with the card name clear and try again."
+            handleLocalFirstLookupFailure(urlError)
             print("[RareCheck] Identification URLError: \(urlError)")
         } catch let apiError as APIError {
-            lastError = apiError.errorDescription ?? "Card lookup service returned an error."
+            handleLocalFirstLookupFailure(apiError)
             print("[RareCheck] Identification APIError: \(apiError)")
         } catch {
             lastError = "Identification failed: \(error.localizedDescription)"
@@ -855,10 +855,10 @@ final class CardScannerViewModel: ObservableObject {
             handleScanError(scanError)
             print("[RareCheck] Identification scan gate: \(scanError)")
         } catch let urlError as URLError {
-            lastError = "Pokemon DB lookup is local-first now. I couldn't confirm this card yet; hold steady with the card name clear and try again."
+            handleLocalFirstLookupFailure(urlError)
             print("[RareCheck] Identification URLError: \(urlError)")
         } catch let apiError as APIError {
-            lastError = apiError.errorDescription ?? "Card lookup service returned an error."
+            handleLocalFirstLookupFailure(apiError)
             print("[RareCheck] Identification APIError: \(apiError)")
         } catch {
             lastError = "Identification failed: \(error.localizedDescription)"
@@ -901,6 +901,12 @@ final class CardScannerViewModel: ObservableObject {
         case .noConfidentPokemonMatch:
             lastError = scanError.errorDescription ?? "Card scan failed."
         }
+    }
+
+    func handleLocalFirstLookupFailure(_ error: Error) {
+        lastError = CardIdentificationError.noConfidentPokemonMatch([]).errorDescription
+        shouldAutoCapture = false
+        autoCaptureArmed = true
     }
 
     func applyDetection(_ detectedFrame: DetectedCardFrame?) {

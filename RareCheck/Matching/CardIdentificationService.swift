@@ -7,7 +7,7 @@ import UIKit
 //  2. Score OCR match against local name index
 //  3. Score pHash when cached artwork hashes are available
 //  4. Resolve locally when OCR/hash evidence is strong enough
-//  5. Use the backend API only as optional enrichment when local evidence is weak
+//  5. Keep live scans local-only so a bundled DB scan never depends on backend reachability
 
 @MainActor
 final class CardIdentificationService: ObservableObject {
@@ -16,13 +16,10 @@ final class CardIdentificationService: ObservableObject {
     private let ocrService = OCRService.shared
     private let cardDetector = CardDetector.shared
     private let pHashMatcher = PHashMatcher.shared
-    private let api = APIClient.shared
-
     private let localConfidenceThreshold: Double = 0.70
     private let localTextOnlyConfidenceThreshold: Double = 0.62
     private let localRescueConfidenceThreshold: Double = 0.78
     private let localFullIndexFallbackThreshold: Double = 0.45
-    private let apiConfidenceThreshold: Double = 0.70
     private let ocrWeight: Double = 0.60
     private let hashWeight: Double = 0.40
 
@@ -88,55 +85,13 @@ final class CardIdentificationService: ObservableObject {
             throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
         }
 
-        // Step 4: Fall back to API. Use the cleaned name candidates in
-        // priority order instead of first sending the full OCR blob. That
-        // avoids slow, low-quality DB searches for attacks like "Scratch"
-        // before the actual Pokemon name.
-        let lookupImage = cardImage.resizedForRareCheckLookup(maxDimension: 900)
-        let compressed = lookupImage.jpegData(compressionQuality: 0.48) ?? Data()
-        let apiCandidates = Array(candidateNames.prefix(1))
-        print("[RareCheck] Pokemon DB candidates: \(apiCandidates)")
-        var apiResponse = CardIdentifyResponse(matches: [], processingTimeMs: 0)
-
-        do {
-            for candidate in apiCandidates {
-                let candidateStart = Date()
-                let candidateHints = CardIdentifyOCRHints(
-                    name: candidate,
-                    collectorNumber: ocr.collectorNumber,
-                    setCode: ocr.setCode,
-                    rawText: nil
-                )
-                let candidateResponse = try await api
-                    .identifyCard(imageData: compressed, ocrHints: candidateHints)
-                    .filtered(minConfidence: apiConfidenceThreshold)
-                let elapsed = Int(Date().timeIntervalSince(candidateStart) * 1000)
-                print("[RareCheck] Pokemon DB lookup '\(candidate)' returned \(candidateResponse.matches.count) confident matches in \(elapsed)ms")
-                if !candidateResponse.matches.isEmpty {
-                    apiResponse = candidateResponse
-                    break
-                }
-            }
-        } catch {
-            if !localRescueMatches.isEmpty {
-                let ms = Int(Date().timeIntervalSince(start) * 1000)
-                print("[RareCheck] API lookup failed; using local OCR rescue candidates")
-                return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
-            }
-            throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
+        if !localRescueMatches.isEmpty {
+            let ms = Int(Date().timeIntervalSince(start) * 1000)
+            print("[RareCheck] Showing seed-local Pokemon DB candidates without remote lookup")
+            return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
         }
 
-        guard !apiResponse.matches.isEmpty else {
-            if !localRescueMatches.isEmpty {
-                let ms = Int(Date().timeIntervalSince(start) * 1000)
-                print("[RareCheck] API returned no confident matches; showing local OCR rescue candidates")
-                return IdentificationResult(matches: localRescueMatches, source: .local, processingTimeMs: ms)
-            }
-            throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
-        }
-
-        let ms = Int(Date().timeIntervalSince(start) * 1000)
-        return IdentificationResult(matches: apiResponse.matches, source: .api, processingTimeMs: ms)
+        throw CardIdentificationError.noConfidentPokemonMatch(candidateNames)
     }
 
     // MARK: - Local Matching
@@ -810,7 +765,7 @@ final class CardScannerViewModel: ObservableObject {
     private var lastDetectedFrame: DetectedCardFrame?
     private var autoCaptureArmed = true
     private let analysisThrottle = 1
-    private let lockThreshold = 6
+    private let lockThreshold = 10
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1

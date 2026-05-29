@@ -89,7 +89,7 @@ final class RareCheckTests: XCTestCase {
         )
 
         XCTAssertFalse(viewModel.shouldAutoCapture)
-        for _ in 0..<5 {
+        for _ in 0..<9 {
             viewModel.applyDetection(frame)
         }
 
@@ -120,7 +120,7 @@ final class RareCheckTests: XCTestCase {
             confidence: 0.92
         )
 
-        for _ in 0..<5 {
+        for _ in 0..<9 {
             viewModel.applyDetection(frame)
         }
         viewModel.applyDetection(shiftedFrame)
@@ -137,7 +137,7 @@ final class RareCheckTests: XCTestCase {
             confidence: 0.92
         )
 
-        for _ in 0..<6 {
+        for _ in 0..<10 {
             viewModel.applyDetection(frame)
         }
         XCTAssertTrue(viewModel.shouldAutoCapture)
@@ -145,13 +145,13 @@ final class RareCheckTests: XCTestCase {
         viewModel.markCaptureStarted()
         viewModel.lastError = "Try again"
         viewModel.markCaptureFinished()
-        for _ in 0..<6 {
+        for _ in 0..<10 {
             viewModel.applyDetection(frame)
         }
         XCTAssertFalse(viewModel.shouldAutoCapture)
 
         viewModel.clearErrorAndResumeScanning()
-        for _ in 0..<6 {
+        for _ in 0..<10 {
             viewModel.applyDetection(frame)
         }
         XCTAssertTrue(viewModel.shouldAutoCapture)

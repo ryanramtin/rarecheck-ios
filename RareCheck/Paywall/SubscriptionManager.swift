@@ -26,7 +26,6 @@ final class SubscriptionManager: ObservableObject {
         let apiKey = rawAPIKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard isUsableRevenueCatKey(apiKey) else {
             errorMessage = purchaseUnavailableMessage
-            print("[RevenueCat] Skipping configuration: missing RevenueCat API key.")
             return
         }
 

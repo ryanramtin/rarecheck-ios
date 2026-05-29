@@ -812,8 +812,8 @@ final class CardScannerViewModel: ObservableObject {
         }
     }
 
-    func saveCard(_ card: CardMatch) -> PersistenceController.SaveOutcome {
-        persistenceController.saveCard(card)
+    func saveCard(_ card: CardMatch, isPro: Bool) -> PersistenceController.SaveOutcome {
+        persistenceController.saveCard(card, isPro: isPro)
     }
 
     func prepareCapturedImage(_ image: UIImage) async -> UIImage {

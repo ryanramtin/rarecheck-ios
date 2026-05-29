@@ -167,7 +167,11 @@ struct CardDetailView: View {
     // MARK: - Actions
 
     private func saveCard() {
-        PersistenceController.shared.saveCard(card)
+        let outcome = PersistenceController.shared.saveCard(card, isPro: subscriptionManager.isPro)
+        guard outcome != .limitReached else {
+            showPaywall = true
+            return
+        }
         isSaved = true
     }
 

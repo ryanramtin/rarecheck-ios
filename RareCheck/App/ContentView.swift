@@ -19,6 +19,8 @@ final class AppNavigationState: ObservableObject {
                 return "\(cardName) added to your collection"
             case .updated:
                 return "\(cardName) refreshed in your collection"
+            case .limitReached:
+                return "Upgrade to Pro to save more than \(PersistenceController.freeCollectionLimit) cards"
             }
         }
     }

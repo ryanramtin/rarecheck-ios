@@ -33,6 +33,7 @@ struct ScannerContainerView: View {
     @State private var pendingLockedCapture = false
     @State private var isAutoCapturePending = false
     @State private var capturePulse = false
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -137,14 +138,22 @@ struct ScannerContainerView: View {
             }
             .sheet(item: $scannerVM.identificationResult) { result in
                 CardMatchResultSheet(result: result, capturedImage: resultCapture, onSave: { card in
-                    let outcome = scannerVM.saveCard(card)
-                    appNavigation.showCollection(for: card.name, outcome: outcome)
+                    let outcome = scannerVM.saveCard(card, isPro: subscriptionManager.isPro)
+                    if outcome == .limitReached {
+                        showPaywall = true
+                    } else {
+                        appNavigation.showCollection(for: card.name, outcome: outcome)
+                    }
                 })
                 .environmentObject(subscriptionManager)
                 .onDisappear {
                     scannerVM.identificationResult = nil
                     resultCapture = nil
                 }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+                    .environmentObject(subscriptionManager)
             }
             .alert("Error", isPresented: .constant(cameraVM.error != nil)) {
                 Button("OK") { cameraVM.error = nil }

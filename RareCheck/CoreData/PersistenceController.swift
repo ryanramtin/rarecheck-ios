@@ -10,12 +10,13 @@ final class PersistenceController: ObservableObject {
     enum SaveOutcome {
         case inserted
         case updated
+        case limitReached
     }
 
     let container: NSPersistentContainer
 
     // Free tier limit
-    static let freeCollectionLimit = 20
+    nonisolated static let freeCollectionLimit = 20
 
     init(inMemory: Bool = false) {
         // Load the managed object model explicitly from the main bundle so
@@ -47,7 +48,7 @@ final class PersistenceController: ObservableObject {
     // MARK: - Save Card
 
     @discardableResult
-    func saveCard(_ card: CardMatch) -> SaveOutcome {
+    func saveCard(_ card: CardMatch, isPro: Bool = false) -> SaveOutcome {
         let ctx = container.viewContext
 
         // Existing saves should be refreshed when the database returns better
@@ -58,6 +59,10 @@ final class PersistenceController: ObservableObject {
             apply(card, to: saved, preserveAddedAt: false)
             try? ctx.save()
             return .updated
+        }
+
+        guard isPro || !isAtFreeLimit() else {
+            return .limitReached
         }
 
         // Use the entity from our container's model explicitly, so we don't

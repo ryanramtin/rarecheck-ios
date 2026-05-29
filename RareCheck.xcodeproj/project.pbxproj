@@ -11,6 +11,7 @@
 		1385EBA6176F09CF6FDB295A /* CardDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A0467038E0761271EA19DF /* CardDetector.swift */; };
 		185ABAAD54FAF615BECECBDA /* RareCheck.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 0341A61B5CD5511CD0635C76 /* RareCheck.xcdatamodeld */; };
 		256542D2F21A58A5E7BD6EDA /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3E1297E9E48247F73B74BC /* PaywallView.swift */; };
+		4CD3F24C6DA02BD0B27BE910 /* rarecheck_card_index_seed.json in Resources */ = {isa = PBXBuildFile; fileRef = AC5696B66C3359BA380B019D /* rarecheck_card_index_seed.json */; };
 		6658C2A5D4152D2BAD0805E7 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBD2F4B40867AAAC0274960 /* SubscriptionManager.swift */; };
 		6AD5A88EA4824DDF1EC15290 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F7FB008BC210F7A2F05A9A /* APIClient.swift */; };
 		6CF06DFC21FD50E601C3962C /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C475F2287A031D1F4A339BF /* OCRService.swift */; };
@@ -25,7 +26,6 @@
 		D24747D9E772993EABD9905C /* CardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C785804290248FC3CD3703 /* CardModels.swift */; };
 		E088C005372DE5942EEEFAB5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 60E492D30C370049437E4301 /* Assets.xcassets */; };
 		E26018C15ED2CD7CEDD06ADB /* RareCheckApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71419CC703C4295F0C8EDFBF /* RareCheckApp.swift */; };
-		EF7A5E0B7A44C06A0F32B511 /* rarecheck_card_index_seed.json in Resources */ = {isa = PBXBuildFile; fileRef = EF7A5E0A7A44C06A0F32B511 /* rarecheck_card_index_seed.json */; };
 		F42D50D92D3CBC8D944A7C8E /* CollectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C65D43657C6FB1B91B7654B /* CollectionViewModel.swift */; };
 		F80271142FDAB33DC8B1C0A5 /* PHashMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ADC79BDA023AEF589F14D76 /* PHashMatcher.swift */; };
 		F970C4D0AD59457EDF313EA0 /* ScanFlowSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23AED91678A757EDEEE2400F /* ScanFlowSmokeTests.swift */; };
@@ -61,6 +61,7 @@
 		9C047D88194EF51503DE2D77 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A6D275F5D35EB3F64816831B /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resources; path = RareCheckTests/Resources; sourceTree = SOURCE_ROOT; };
 		A6FEFB14829FD42D1B829340 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AC5696B66C3359BA380B019D /* rarecheck_card_index_seed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = rarecheck_card_index_seed.json; sourceTree = "<group>"; };
 		B162C90E555CF547FF13588F /* CardSignalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSignalTests.swift; sourceTree = "<group>"; };
 		B4349E1420EE43A542F7F2CC /* RareCheck.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RareCheck.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B518D909D6B32573048623EE /* CollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionView.swift; sourceTree = "<group>"; };
@@ -69,7 +70,6 @@
 		D344A4D1A0AC7FAE25445B9D /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
 		DDBBCCBB12A29FBC4767D070 /* RareCheckTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RareCheckTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9144E21CF6E4733CC82483C /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
-		EF7A5E0A7A44C06A0F32B511 /* rarecheck_card_index_seed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = rarecheck_card_index_seed.json; sourceTree = "<group>"; };
 		F3D26ADDEAF233F2E6CC872D /* RareCheck.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = RareCheck.xcdatamodel; sourceTree = "<group>"; };
 		F7B8715E4717B3B8A23A4182 /* CardDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -156,7 +156,7 @@
 			children = (
 				60E492D30C370049437E4301 /* Assets.xcassets */,
 				9C047D88194EF51503DE2D77 /* Info.plist */,
-				EF7A5E0A7A44C06A0F32B511 /* rarecheck_card_index_seed.json */,
+				AC5696B66C3359BA380B019D /* rarecheck_card_index_seed.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -227,6 +227,7 @@
 			buildPhases = (
 				A638B08CEA7508AFA200FADD /* Sources */,
 				D69B55D8FFAFECDEE4B61309 /* Resources */,
+				267F18829FC89941B38CE69D /* Sign Embedded Test Bundles */,
 			);
 			buildRules = (
 			);
@@ -306,7 +307,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E088C005372DE5942EEEFAB5 /* Assets.xcassets in Resources */,
-				EF7A5E0B7A44C06A0F32B511 /* rarecheck_card_index_seed.json in Resources */,
+				4CD3F24C6DA02BD0B27BE910 /* rarecheck_card_index_seed.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -319,6 +320,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		267F18829FC89941B38CE69D /* Sign Embedded Test Bundles */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Embedded Test Bundles";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nif [ \"${CODE_SIGNING_ALLOWED:-NO}\" != \"YES\" ]; then\n  exit 0\nfi\nif [ -z \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then\n  exit 0\nfi\nfind \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\" -maxdepth 1 -type d -name \"*.bundle\" -print0 | while IFS= read -r -d '' bundle; do\n  /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --timestamp=none \"${bundle}\"\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		3DC417AE48BEC253E061BCAB /* Sources */ = {
@@ -379,7 +402,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.appgumbo.rarecheck.tests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RareCheck.app/RareCheck";
 			};
 			name = Debug;
@@ -503,7 +526,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.appgumbo.rarecheck.tests;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RareCheck.app/RareCheck";
 			};
 			name = Release;

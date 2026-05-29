@@ -149,7 +149,7 @@ final class RareCheckTests: XCTestCase {
     func testOffCenterCardGivesCenterGuidanceInsteadOfAutoCapture() {
         let viewModel = CardScannerViewModel()
         let frame = DetectedCardFrame(
-            boundingBox: CGRect(x: 0.02, y: 0.2, width: 0.36, height: 0.58),
+            boundingBox: CGRect(x: 0.0, y: 0.2, width: 0.28, height: 0.58),
             confidence: 0.92
         )
 

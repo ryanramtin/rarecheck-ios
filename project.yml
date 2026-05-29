@@ -72,5 +72,20 @@ targets:
     settings:
       GENERATE_INFOPLIST_FILE: YES
       PRODUCT_BUNDLE_IDENTIFIER: com.appgumbo.rarecheck.tests
+      TARGETED_DEVICE_FAMILY: "1"
+    postBuildScripts:
+      - name: Sign Embedded Test Bundles
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          if [ "${CODE_SIGNING_ALLOWED:-NO}" != "YES" ]; then
+            exit 0
+          fi
+          if [ -z "${EXPANDED_CODE_SIGN_IDENTITY:-}" ]; then
+            exit 0
+          fi
+          find "${TARGET_BUILD_DIR}/${WRAPPER_NAME}" -maxdepth 1 -type d -name "*.bundle" -print0 | while IFS= read -r -d '' bundle; do
+            /usr/bin/codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY}" --timestamp=none "${bundle}"
+          done
     dependencies:
       - target: RareCheck

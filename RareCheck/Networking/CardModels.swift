@@ -15,7 +15,7 @@ struct CardMatch: Codable, Identifiable, Hashable {
 
     var confidencePercent: Int { Int(confidence * 100) }
     var canSaveToCollection: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        persistenceReady != nil
     }
 
     var persistenceReady: CardMatch? {
@@ -25,6 +25,10 @@ struct CardMatch: Codable, Identifiable, Hashable {
         let trimmedSetCode = setCode.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedCollectorNumber = collectorNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedImageURL = imageURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasDisplayMetadata = !trimmedImageURL.isEmpty || (!trimmedSetCode.isEmpty && !trimmedCollectorNumber.isEmpty)
+        guard hasDisplayMetadata else { return nil }
+
         let resolvedID: String
         if !trimmedID.isEmpty {
             resolvedID = trimmedID
@@ -45,7 +49,7 @@ struct CardMatch: Codable, Identifiable, Hashable {
             setCode: trimmedSetCode,
             collectorNumber: trimmedCollectorNumber,
             rarity: rarity.trimmingCharacters(in: .whitespacesAndNewlines),
-            imageURL: imageURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            imageURL: trimmedImageURL,
             confidence: confidence,
             price: price
         )

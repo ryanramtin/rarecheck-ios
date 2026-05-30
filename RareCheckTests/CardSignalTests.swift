@@ -93,6 +93,18 @@ final class RareCheckTests: XCTestCase {
         XCTAssertEqual(controller.collectionCount(), 0)
     }
 
+    func testNameOnlyScanMatchIsNotSavedToCollection() {
+        let controller = PersistenceController(inMemory: true)
+        let nameOnlyMatch = CardMatch(id: "", name: "Galarian Mr. Mime", setName: "",
+                                      setCode: "", collectorNumber: "", rarity: "",
+                                      imageURL: "", confidence: 0.61, price: .zero)
+
+        let outcome = controller.saveCard(nameOnlyMatch)
+
+        XCTAssertEqual(outcome, .invalidCard)
+        XCTAssertEqual(controller.collectionCount(), 0)
+    }
+
     func testScanSaveTrimsPayloadAndKeepsLibraryCardVisible() throws {
         let controller = PersistenceController(inMemory: true)
         let match = CardMatch(id: "  ", name: "  Galarian Mr. Mime  ", setName: "  Sword & Shield  ",

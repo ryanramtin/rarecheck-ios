@@ -495,9 +495,6 @@ struct CardMatchResultSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
-                        if let first = result.matches.first {
-                            onSave(first)
-                        }
                         dismiss()
                     }
                 }

@@ -20,8 +20,13 @@ struct DetectedCardFrame: Equatable {
         return boundingBox.width / boundingBox.height
     }
 
+    var hasCardLikeAspectRatio: Bool {
+        (0.58...0.84).contains(aspectRatio)
+    }
+
     var isUsablyFramed: Bool {
         confidence >= 0.35 &&
+            hasCardLikeAspectRatio &&
             area >= 0.08 &&
             (0.08...0.92).contains(center.x) &&
             (0.08...0.92).contains(center.y)
@@ -29,6 +34,7 @@ struct DetectedCardFrame: Equatable {
 
     var captureReadiness: CaptureReadiness {
         guard confidence >= 0.35 else { return .findingEdges }
+        guard hasCardLikeAspectRatio else { return .alignCardEdges }
         guard area >= 0.16 else { return .moveCloser }
         guard (0.16...0.84).contains(center.x),
               (0.14...0.88).contains(center.y) else {
@@ -42,12 +48,13 @@ struct DetectedCardFrame: Equatable {
         let centerShift = hypot(center.x - previous.center.x, center.y - previous.center.y)
         let areaDelta = abs(area - previous.area)
         let aspectDelta = abs(aspectRatio - previous.aspectRatio)
-        return centerShift <= 0.075 && areaDelta <= 0.16 && aspectDelta <= 0.14
+        return centerShift <= 0.04 && areaDelta <= 0.08 && aspectDelta <= 0.07
     }
 }
 
 enum CaptureReadiness: Equatable {
     case findingEdges
+    case alignCardEdges
     case moveCloser
     case centerCard
     case reduceGlare
@@ -57,6 +64,8 @@ enum CaptureReadiness: Equatable {
         switch self {
         case .findingEdges:
             return "Find card edges"
+        case .alignCardEdges:
+            return "Align card edges"
         case .moveCloser:
             return "Move closer"
         case .centerCard:

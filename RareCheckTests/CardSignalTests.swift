@@ -206,7 +206,7 @@ final class RareCheckTests: XCTestCase {
     func testOffCenterCardGivesCenterGuidanceInsteadOfAutoCapture() {
         let viewModel = CardScannerViewModel()
         let frame = DetectedCardFrame(
-            boundingBox: CGRect(x: 0.0, y: 0.2, width: 0.28, height: 0.58),
+            boundingBox: CGRect(x: 0.66, y: 0.2, width: 0.42, height: 0.58),
             confidence: 0.92
         )
 
@@ -216,6 +216,44 @@ final class RareCheckTests: XCTestCase {
 
         XCTAssertTrue(viewModel.isFramed)
         XCTAssertEqual(viewModel.captureReadiness, .centerCard)
+        XCTAssertFalse(viewModel.isLocked)
+        XCTAssertFalse(viewModel.shouldAutoCapture)
+    }
+
+    func testNonCardAspectRatioDoesNotAutoCapture() {
+        let viewModel = CardScannerViewModel()
+        let keyboardLikeFrame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.16, y: 0.24, width: 0.68, height: 0.28),
+            confidence: 0.96
+        )
+
+        for _ in 0..<24 {
+            viewModel.applyDetection(keyboardLikeFrame)
+        }
+
+        XCTAssertFalse(viewModel.isFramed)
+        XCTAssertEqual(viewModel.captureReadiness, .alignCardEdges)
+        XCTAssertFalse(viewModel.isLocked)
+        XCTAssertFalse(viewModel.shouldAutoCapture)
+    }
+
+    func testSmallAspectJitterResetsAutoCaptureHold() {
+        let viewModel = CardScannerViewModel()
+        let frame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.18, y: 0.22, width: 0.56, height: 0.72),
+            confidence: 0.92
+        )
+        let jitteredFrame = DetectedCardFrame(
+            boundingBox: CGRect(x: 0.18, y: 0.22, width: 0.62, height: 0.72),
+            confidence: 0.92
+        )
+
+        for _ in 0..<17 {
+            viewModel.applyDetection(frame)
+        }
+        viewModel.applyDetection(jitteredFrame)
+
+        XCTAssertTrue(viewModel.isFramed)
         XCTAssertFalse(viewModel.isLocked)
         XCTAssertFalse(viewModel.shouldAutoCapture)
     }

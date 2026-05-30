@@ -23,7 +23,7 @@ struct PaywallView: View {
                     featureList
                     if subscriptionManager.isLoading {
                         ProgressView().padding()
-                    } else if !subscriptionManager.isConfigured {
+                    } else if !subscriptionManager.isConfigured || !subscriptionManager.hasPurchaseOptions {
                         purchasesUnavailableView
                     } else {
                         pricingCards
@@ -182,7 +182,7 @@ struct PaywallView: View {
                 .foregroundStyle(.orange)
             Text("Purchases unavailable")
                 .font(.headline)
-            Text(subscriptionManager.errorMessage ?? "Purchases are not configured for this build.")
+            Text(subscriptionManager.errorMessage ?? "Purchases are temporarily unavailable. Please try again later.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

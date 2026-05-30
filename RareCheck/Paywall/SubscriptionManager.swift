@@ -2,7 +2,7 @@ import RevenueCat
 import SwiftUI
 import Combine
 
-private let purchaseUnavailableMessage = "Purchases are unavailable in this build. Configure REVENUECAT_API_KEY for App Store or TestFlight purchase testing."
+private let purchaseUnavailableMessage = "Purchases are temporarily unavailable. Please try again later."
 
 // MARK: - Subscription Manager
 // Single source of truth for Pro entitlement state via RevenueCat
@@ -17,6 +17,10 @@ final class SubscriptionManager: ObservableObject {
     @Published private(set) var isConfigured = false
     @Published var errorMessage: String?
 
+    var hasPurchaseOptions: Bool {
+        offerings?.current?.availablePackages.isEmpty == false
+    }
+
     // RevenueCat entitlement ID — set in RC dashboard
     static let proEntitlementID = "pro"
 
@@ -29,7 +33,9 @@ final class SubscriptionManager: ObservableObject {
             return
         }
 
+        #if DEBUG
         Purchases.logLevel = .debug
+        #endif
         Purchases.configure(withAPIKey: apiKey)
         isConfigured = true
         errorMessage = nil
@@ -63,8 +69,11 @@ final class SubscriptionManager: ObservableObject {
         defer { isLoading = false }
         do {
             offerings = try await Purchases.shared.offerings()
+            if offerings?.current == nil || offerings?.current?.availablePackages.isEmpty == true {
+                errorMessage = purchaseUnavailableMessage
+            }
         } catch {
-            errorMessage = "Failed to load subscription options."
+            errorMessage = purchaseUnavailableMessage
         }
     }
 
@@ -102,6 +111,7 @@ final class SubscriptionManager: ObservableObject {
 
     private func isUsableRevenueCatKey(_ apiKey: String) -> Bool {
         !apiKey.isEmpty &&
+        apiKey.hasPrefix("appl_") &&
         !apiKey.contains("REPLACE") &&
         !apiKey.contains("$(")
     }

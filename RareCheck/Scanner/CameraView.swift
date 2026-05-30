@@ -501,11 +501,10 @@ struct CardMatchResultSheet: View {
                             onSave(match)
                             dismiss()
                         }
-                    }
-                } header: {
-                    Text("\(result.matches.count) match\(result.matches.count == 1 ? "" : "es") found • \(result.processingTimeMs)ms")
-                        .font(.caption)
                 }
+            } header: {
+                Text("\(result.matches.count) match\(result.matches.count == 1 ? "" : "es") found • \(ScanDurationFormatter.label(for: result))")
+                    .font(.caption)
             }
             .navigationTitle("Scan Results")
             .navigationBarTitleDisplayMode(.inline)
@@ -643,6 +642,25 @@ struct CardMatchRow: View {
             }
         }
         .contentShape(Rectangle())
+    }
+}
+
+enum ScanDurationFormatter {
+    static func label(for result: IdentificationResult) -> String {
+        switch result.source {
+        case .local:
+            if result.processingTimeMs < 1000 {
+                return "Local DB instant match"
+            }
+            return "Local DB \(secondsLabel(milliseconds: result.processingTimeMs))"
+        case .api:
+            return "Pokemon DB \(secondsLabel(milliseconds: result.processingTimeMs))"
+        }
+    }
+
+    private static func secondsLabel(milliseconds: Int) -> String {
+        let seconds = max(1, Int(ceil(Double(milliseconds) / 1000.0)))
+        return "\(seconds)s"
     }
 }
 

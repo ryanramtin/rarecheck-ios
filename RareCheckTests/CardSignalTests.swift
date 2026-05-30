@@ -499,6 +499,24 @@ final class RareCheckTests: XCTestCase {
         }
     }
 
+    func testFastLocalScanDoesNotDisplayZeroSecondDuration() {
+        let result = IdentificationResult(
+            matches: [
+                CardMatch(id: "det1-1", name: "Bulbasaur", setName: "Detective Pikachu",
+                          setCode: "det1", collectorNumber: "1", rarity: "Common",
+                          imageURL: "https://images.pokemontcg.io/det1/1.png",
+                          confidence: 0.96, price: .zero)
+            ],
+            source: .local,
+            processingTimeMs: 0
+        )
+
+        let label = ScanDurationFormatter.label(for: result)
+
+        XCTAssertEqual(label, "Local DB instant match")
+        XCTAssertFalse(label.contains("0"))
+    }
+
     func testFreeLimitEnforcement() {
         let controller = PersistenceController(inMemory: true)
         XCTAssertFalse(controller.isAtFreeLimit())

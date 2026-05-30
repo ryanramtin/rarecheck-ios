@@ -89,7 +89,7 @@ final class RareCheckTests: XCTestCase {
         )
 
         XCTAssertFalse(viewModel.shouldAutoCapture)
-        for _ in 0..<9 {
+        for _ in 0..<17 {
             viewModel.applyDetection(frame)
         }
 
@@ -120,7 +120,7 @@ final class RareCheckTests: XCTestCase {
             confidence: 0.92
         )
 
-        for _ in 0..<9 {
+        for _ in 0..<17 {
             viewModel.applyDetection(frame)
         }
         viewModel.applyDetection(shiftedFrame)
@@ -137,7 +137,7 @@ final class RareCheckTests: XCTestCase {
             confidence: 0.92
         )
 
-        for _ in 0..<10 {
+        for _ in 0..<18 {
             viewModel.applyDetection(frame)
         }
         XCTAssertTrue(viewModel.shouldAutoCapture)
@@ -145,13 +145,13 @@ final class RareCheckTests: XCTestCase {
         viewModel.markCaptureStarted()
         viewModel.lastError = "Try again"
         viewModel.markCaptureFinished()
-        for _ in 0..<10 {
+        for _ in 0..<18 {
             viewModel.applyDetection(frame)
         }
         XCTAssertFalse(viewModel.shouldAutoCapture)
 
         viewModel.clearErrorAndResumeScanning()
-        for _ in 0..<10 {
+        for _ in 0..<18 {
             viewModel.applyDetection(frame)
         }
         XCTAssertTrue(viewModel.shouldAutoCapture)
@@ -228,14 +228,14 @@ final class RareCheckTests: XCTestCase {
         let viewModel = CardScannerViewModel()
 
         viewModel.handleLocalFirstLookupFailure(URLError(.timedOut))
-        let timeoutMessage = viewModel.lastError ?? ""
+        let timeoutMessage = viewModel.scanGuidance ?? viewModel.lastError ?? ""
         XCTAssertFalse(timeoutMessage.localizedCaseInsensitiveContains("backend"))
         XCTAssertFalse(timeoutMessage.localizedCaseInsensitiveContains("service"))
         XCTAssertFalse(timeoutMessage.contains("-1001"))
         XCTAssertTrue(timeoutMessage.contains("card name"))
 
         viewModel.handleLocalFirstLookupFailure(APIError.httpError(statusCode: 503, message: "Backend may be offline."))
-        let apiMessage = viewModel.lastError ?? ""
+        let apiMessage = viewModel.scanGuidance ?? viewModel.lastError ?? ""
         XCTAssertFalse(apiMessage.localizedCaseInsensitiveContains("backend"))
         XCTAssertFalse(apiMessage.localizedCaseInsensitiveContains("service"))
         XCTAssertTrue(apiMessage.contains("card name"))

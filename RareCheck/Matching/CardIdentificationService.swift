@@ -347,9 +347,16 @@ final class LocalCardIndex {
     static let shared = LocalCardIndex()
     var index: [LocalCardRecord]?
 
+    private enum Source {
+        case none
+        case cache
+        case bundledSeed
+    }
+
     private let seedResourceName = "rarecheck_card_index_seed"
     private let refreshInterval: TimeInterval = 7 * 24 * 60 * 60
     private var isRefreshing = false
+    private var source: Source = .none
 
     private let cacheURL: URL = {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -371,6 +378,7 @@ final class LocalCardIndex {
            let records = try? JSONDecoder().decode([LocalCardRecord].self, from: data),
            !records.isEmpty {
             index = records
+            source = .cache
             return
         }
 
@@ -384,14 +392,17 @@ final class LocalCardIndex {
 
         if let records = loadBundledSeed(), !records.isEmpty {
             index = records
+            source = .bundledSeed
             return
         }
 
         index = []
+        source = .none
     }
 
     func update(with records: [LocalCardRecord]) {
         index = records
+        source = .cache
         try? JSONEncoder().encode(records).write(to: cacheURL)
         var fileURL = cacheURL
         var resourceValues = URLResourceValues()
@@ -404,13 +415,11 @@ final class LocalCardIndex {
     }
 
     var isUsingBundledSeed: Bool {
-        recordCount > 0 &&
-        recordCount < 1_000 &&
-        (try? FileManager.default.attributesOfItem(atPath: cacheURL.path)) == nil
+        source == .bundledSeed
     }
 
     var isFullIndexAvailable: Bool {
-        recordCount >= 1_000 || (recordCount > 0 && !isUsingBundledSeed)
+        recordCount >= 1_000
     }
 
     var cacheUpdatedAt: Date? {
@@ -767,8 +776,8 @@ final class CardScannerViewModel: ObservableObject {
     private var autoCaptureArmed = true
     private var autoCaptureCooldownUntil = Date.distantPast
     private let analysisThrottle = 1
-    private let lockThreshold = 10
-    private let missRetryCooldown: TimeInterval = 2.5
+    private let lockThreshold = 18
+    private let missRetryCooldown: TimeInterval = 1.4
 
     func analyzeFrame(_ buffer: CVPixelBuffer) {
         frameThrottle += 1

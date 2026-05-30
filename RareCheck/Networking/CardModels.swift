@@ -18,6 +18,17 @@ struct CardMatch: Codable, Identifiable, Hashable {
         persistenceReady != nil
     }
 
+    static func isUsableImageURL(_ rawValue: String) -> Bool {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host?.isEmpty == false else {
+            return false
+        }
+        return true
+    }
+
     var persistenceReady: CardMatch? {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return nil }
@@ -26,7 +37,7 @@ struct CardMatch: Codable, Identifiable, Hashable {
         let trimmedCollectorNumber = collectorNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedImageURL = imageURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasDisplayMetadata = !trimmedImageURL.isEmpty || (!trimmedSetCode.isEmpty && !trimmedCollectorNumber.isEmpty)
+        let hasDisplayMetadata = Self.isUsableImageURL(trimmedImageURL) || (!trimmedSetCode.isEmpty && !trimmedCollectorNumber.isEmpty)
         guard hasDisplayMetadata else { return nil }
 
         let resolvedID: String

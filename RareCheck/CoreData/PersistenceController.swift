@@ -125,7 +125,7 @@ final class PersistenceController: ObservableObject {
         let imageURL = (card.imageURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let setCode = (card.setCode ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let collectorNumber = (card.collectorNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return !imageURL.isEmpty || (!setCode.isEmpty && !collectorNumber.isEmpty)
+        return CardMatch.isUsableImageURL(imageURL) || (!setCode.isEmpty && !collectorNumber.isEmpty)
     }
 
     @discardableResult

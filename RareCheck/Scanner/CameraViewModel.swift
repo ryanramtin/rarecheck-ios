@@ -12,6 +12,7 @@ final class CameraViewModel: NSObject, ObservableObject {
     @Published var isPermissionResolved = false
     @Published private(set) var isSessionConfigured = false
     @Published private(set) var isSessionRunning = false
+    @Published private(set) var isSessionStarting = false
 
     // nonisolated(unsafe): AVCaptureSession is thread-safe for start/stop;
     // we never mutate the reference itself after init.
@@ -21,6 +22,7 @@ final class CameraViewModel: NSObject, ObservableObject {
     private var cameraDevice: AVCaptureDevice?
     private var configuredMaxPhotoDimensions: CMVideoDimensions?
     private var shouldStartAfterConfiguration = false
+    private var sessionStartGeneration = 0
 
     // Stored nonisolated so the video-queue delegate can call it without
     // crossing actor boundaries. The closure itself must be concurrency-safe.
@@ -55,6 +57,9 @@ final class CameraViewModel: NSObject, ObservableObject {
 
     func setupSession() async {
         guard !isSessionConfigured else { return }
+        if session.isRunning {
+            isSessionRunning = true
+        }
         session.beginConfiguration()
         session.sessionPreset = .high
 
@@ -105,18 +110,34 @@ final class CameraViewModel: NSObject, ObservableObject {
             shouldStartAfterConfiguration = true
             return
         }
-        guard !isSessionRunning else { return }
-        isSessionRunning = true
+        guard !isSessionRunning, !isSessionStarting else { return }
+        isSessionStarting = true
+        sessionStartGeneration += 1
+        let generation = sessionStartGeneration
         // Capture session ref locally — safe because session is nonisolated(unsafe)
         let captureSession = session
         Task.detached(priority: .userInitiated) {
             captureSession.startRunning()
+            await MainActor.run {
+                guard self.sessionStartGeneration == generation else {
+                    if captureSession.isRunning {
+                        Task.detached(priority: .background) {
+                            captureSession.stopRunning()
+                        }
+                    }
+                    return
+                }
+                self.isSessionStarting = false
+                self.isSessionRunning = captureSession.isRunning
+            }
         }
     }
 
     func stopSession() {
         shouldStartAfterConfiguration = false
-        guard isSessionRunning else { return }
+        sessionStartGeneration += 1
+        isSessionStarting = false
+        guard isSessionRunning || session.isRunning else { return }
         isSessionRunning = false
         let captureSession = session
         Task.detached(priority: .background) {

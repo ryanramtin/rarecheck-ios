@@ -105,6 +105,30 @@ final class RareCheckTests: XCTestCase {
         XCTAssertEqual(controller.collectionCount(), 0)
     }
 
+    func testMalformedImageOnlyScanMatchIsNotSavedToCollection() {
+        let controller = PersistenceController(inMemory: true)
+        let malformedImageOnlyMatch = CardMatch(id: "", name: "Galarian Mr. Mime", setName: "",
+                                                setCode: "", collectorNumber: "", rarity: "",
+                                                imageURL: "not-a-card-image", confidence: 0.61, price: .zero)
+
+        let outcome = controller.saveCard(malformedImageOnlyMatch)
+
+        XCTAssertEqual(outcome, .invalidCard)
+        XCTAssertEqual(controller.collectionCount(), 0)
+    }
+
+    func testSetAndCollectorCanSaveEvenWhenImageIsGenerated() {
+        let controller = PersistenceController(inMemory: true)
+        let metadataMatch = CardMatch(id: "", name: "Galarian Mr. Mime", setName: "Sword & Shield",
+                                      setCode: "swsh1", collectorNumber: "48", rarity: "Common",
+                                      imageURL: "", confidence: 0.82, price: .zero)
+
+        let outcome = controller.saveCard(metadataMatch)
+
+        XCTAssertEqual(outcome, .inserted)
+        XCTAssertEqual(controller.collectionCount(), 1)
+    }
+
     func testScanSaveTrimsPayloadAndKeepsLibraryCardVisible() throws {
         let controller = PersistenceController(inMemory: true)
         let match = CardMatch(id: "  ", name: "  Galarian Mr. Mime  ", setName: "  Sword & Shield  ",
